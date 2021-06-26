@@ -3,14 +3,19 @@ import pretty_midi
 import note_seq
 from hvo_sequence.io_helpers import note_sequence_to_hvo_sequence
 from hvo_sequence.drum_mappings import ROLAND_REDUCED_MAPPING, DUALIZATION_ROLAND_HAND_DRUM
+import math
 
-
-def midi_to_LeftRightHVO(midi_filename):
+def midi_to_LeftRightHVO(midi_filename, n_steps = 32):
     midi_data = pretty_midi.PrettyMIDI(midi_filename)
     ns = note_seq.midi_io.midi_to_note_sequence(midi_data)
     hvo_seq = note_sequence_to_hvo_sequence(ns, drum_mapping=DUALIZATION_ROLAND_HAND_DRUM)
     if len(hvo_seq.time_signatures) > 1:
         del (hvo_seq.time_signatures[1:])
+
+    if hvo_seq.hvo.shape[0]<n_steps:
+        hvo_seq.hvo = np.pad(hvo_seq.hvo, ((0, n_steps-hvo_seq.hvo.shape[0]), (0, 0)))
+    else:
+        hvo_seq.hvo = hvo_seq.hvo[:n_steps, :]
 
     return hvo_seq
 
@@ -72,3 +77,21 @@ def convert_hits_to_123format(hits_array):
             squeezed_hits = np.append(squeezed_hits, 3)
 
     return squeezed_hits
+
+
+def cosine_similarity(a, b):
+
+    a_ = a.flatten()
+    b_ = b.flatten()
+
+    return np.dot(a_, b_)/(np.linalg.norm(a_)*np.linalg.norm(b_))
+
+
+def cosine_distance(a, b):
+    return 1-cosine_similarity(a, b)
+
+
+def hamming_distance(vel_groove_a, vel_groove_b):
+
+    x = (vel_groove_a.flatten() - vel_groove_b.flatten())
+    return math.sqrt(np.dot(x, x.T))
