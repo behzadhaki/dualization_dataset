@@ -10,6 +10,7 @@ midi_filename = 'processed_data/InterDrummer_Repetitions/genis/' \
 
 # Plotting Dualization
 hvo_seq = midi_to_LeftRightHVO(midi_filename)
+# hvo_seq.hvo
 hvo_seq.to_html_plot(show_figure=False)
 
 # Convert to 123 format
@@ -141,7 +142,7 @@ for track in unique_files_tested_from_gmd:
 # Plot inter-distances for cosine
 data = [inter_cosine_distances[track] for track in unique_files_tested_from_gmd]
 fig3, ax3 = plt.subplots()
-ax1.set_title('Inter-drummer cosine distances')
+ax3.set_title('Inter-drummer cosine distances')
 ax3
 ax3.boxplot(data)
 plt.show()
@@ -150,8 +151,8 @@ plt.show()
 
 # Plot inter-distances for hamming
 data = [inter_hamming_distances[track] for track in unique_files_tested_from_gmd]
-fig3, ax3 = plt.subplots()
-ax1.set_title('Inter-drummer hamming distances')
-ax3
-ax3.boxplot(data)
+fig4, ax4 = plt.subplots()
+ax4.set_title('Inter-drummer hamming distances')
+ax4
+ax4.boxplot(data)
 plt.show()
