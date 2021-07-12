@@ -129,7 +129,7 @@ def extract_style_from(fname):
     return style
 
 
-def get_dualization_heatmap_from_midis(data_folder, save_path="temp"):
+def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_by_style=True):
 
     # Master Folder for each of the 72 files
     full_paths = glob.glob(os.path.join(data_folder, "*"))
@@ -141,7 +141,7 @@ def get_dualization_heatmap_from_midis(data_folder, save_path="temp"):
 
     # Load original and dualized midis and convert to HVO_Sequence
     for ix, folder_name in enumerate(unique_files_tested_from_gmd):
-        style = extract_style_from(folder_name)
+        style = extract_style_from(folder_name) if separate_by_style else "ALL_STYLES"
 
         if style not in original_patterns_per_style.keys():
             original_patterns_per_style[style] = []
