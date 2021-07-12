@@ -126,3 +126,7 @@ DUALIZATION_ROLAND_HAND_DRUM = {
     "Left": [60, 48, 72],
     "Right": [74, 62, 86]
 }
+
+DUALIZATION_ROLAND_HAND_DRUM_MIXED = {
+    "Left&Right": [60, 48, 72, 74, 62, 86]
+}

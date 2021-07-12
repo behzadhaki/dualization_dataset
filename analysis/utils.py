@@ -2,7 +2,7 @@ import numpy as np
 import pretty_midi
 import note_seq
 from hvo_sequence.io_helpers import note_sequence_to_hvo_sequence
-from hvo_sequence.drum_mappings import ROLAND_REDUCED_MAPPING, DUALIZATION_ROLAND_HAND_DRUM
+from hvo_sequence.drum_mappings import ROLAND_REDUCED_MAPPING, DUALIZATION_ROLAND_HAND_DRUM, DUALIZATION_ROLAND_HAND_DRUM_MIXED
 import math
 import os, glob
 
@@ -29,10 +29,15 @@ def midi_to_HVO(midi_filename, n_steps = 32):
     return hvo_seq
 
 
-def midi_to_LeftRightHVO(midi_filename, n_steps = 32):
+def midi_to_LeftRightHVO(midi_filename, n_steps = 32, mix_hands=False):
+    "if mix_hands the left and right hand will be mixed together"
     midi_data = pretty_midi.PrettyMIDI(midi_filename)
     ns = note_seq.midi_io.midi_to_note_sequence(midi_data)
-    hvo_seq = note_sequence_to_hvo_sequence(ns, drum_mapping=DUALIZATION_ROLAND_HAND_DRUM)
+    if mix_hands is False:
+        hvo_seq = note_sequence_to_hvo_sequence(ns, drum_mapping=DUALIZATION_ROLAND_HAND_DRUM)
+    else:
+        hvo_seq = note_sequence_to_hvo_sequence(ns, drum_mapping=DUALIZATION_ROLAND_HAND_DRUM_MIXED)
+
     if len(hvo_seq.time_signatures) > 1:
         del (hvo_seq.time_signatures[1:])
 
@@ -171,7 +176,7 @@ def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_b
 
 # users = ["genis", ... , "luis"]
 def get_inter_drummer_heatmaps(root_folder, users, save_path="temp",
-                               separate_by_style=True, regroup_by_drum_voice=False):
+                               separate_by_style=True, regroup_by_drum_voice=False, mix_hands=False):
 
     mixed_heatmaps = {}
     mixed_scatters_dict = {}
@@ -180,13 +185,15 @@ def get_inter_drummer_heatmaps(root_folder, users, save_path="temp",
         data_folder = os.path.join(root_folder, user)
         if user_ix == 0:
             original_patterns_per_style, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict = get_drummer_heatmap_dicts(
-                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice
+                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice,
+                mix_hands = mix_hands
             )
             mixed_heatmaps.update(original_heatmaps_dict)
             mixed_scatters_dict.update(original_scatters_dict)
         else:
             _, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict = get_drummer_heatmap_dicts(
-                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice
+                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice,
+                mix_hands=mix_hands
             )
 
         for style in mixed_heatmaps.keys():
@@ -219,7 +226,7 @@ def get_inter_drummer_heatmaps(root_folder, users, save_path="temp",
 
     return tabs
 
-def get_drummer_heatmap_dicts(data_folder, separate_by_style=True, regroup_by_drum_voice=False):
+def get_drummer_heatmap_dicts(data_folder, separate_by_style=True, regroup_by_drum_voice=False, mix_hands=False):
 
     # Master Folder for each of the 72 files
     full_paths = glob.glob(os.path.join(data_folder, "*"))
@@ -239,11 +246,11 @@ def get_drummer_heatmap_dicts(data_folder, separate_by_style=True, regroup_by_dr
 
         original_patterns_per_style[style].append(midi_to_HVO(os.path.join(full_paths[ix], "original.mid")))
         dualized_patterns_per_style[style].append(
-            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_0.mid")))
+            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_0.mid"), mix_hands=mix_hands))
         dualized_patterns_per_style[style].append(
-            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_1.mid")))
+            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_1.mid"), mix_hands=mix_hands))
         dualized_patterns_per_style[style].append(
-            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_2.mid")))
+            midi_to_LeftRightHVO(os.path.join(full_paths[ix], "repetition_2.mid"), mix_hands=mix_hands))
 
     #
     feature_extractors_for_originals = Feature_Extractor_From_HVO_SubSets(

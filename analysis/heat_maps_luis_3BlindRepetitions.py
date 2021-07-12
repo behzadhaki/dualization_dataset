@@ -35,6 +35,15 @@ get_dualization_heatmap_from_midis(data_folder, save_path="heatmaps/LuisSessionA
 
 
 get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
-                           save_path="heatmaps/InterDrummer_Separataed_BY_Style", separate_by_style=True, regroup_by_drum_voice=False)
+                           save_path="heatmaps/InterDrummer_Separataed_BY_Style",
+                           separate_by_style=True, mix_hands=False)
 get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
-                           save_path="heatmaps/InterDrummer_ALL_STYLES_MIXED", separate_by_style=False, regroup_by_drum_voice=False)
+                           save_path="heatmaps/InterDrummer_ALL_STYLES_MIXED",
+                           separate_by_style=False, mix_hands=False)
+
+get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+                           save_path="heatmaps/InterDrummer_LRMixed_Separataed_BY_Style",
+                           separate_by_style=True, mix_hands=True)
+get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+                           save_path="heatmaps/InterDrummer_LRMixed_ALL_STYLES_MIXED",
+                           separate_by_style=False, mix_hands=True)
