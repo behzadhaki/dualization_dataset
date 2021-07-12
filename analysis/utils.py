@@ -129,7 +129,97 @@ def extract_style_from(fname):
     return style
 
 
-def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_by_style=True):
+def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_by_style=True, regroup_by_drum_voice=False):
+    original_patterns_per_style, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict =  get_drummer_heatmap_dicts(
+        data_folder, separate_by_style=separate_by_style,regroup_by_drum_voice=regroup_by_drum_voice
+    )
+
+    mixed_heatmaps = {}
+    mixed_scatters_dict = {}
+    mixed_heatmaps.update(original_heatmaps_dict)
+    mixed_scatters_dict.update(original_scatters_dict)
+    for style in mixed_heatmaps.keys():
+        for dualized_voice in dualized_heatmaps_dict[style].keys():
+            mixed_heatmaps[style][dualized_voice] = dualized_heatmaps_dict[style][dualized_voice]
+            mixed_scatters_dict[style][dualized_voice] = dualized_scatters_dict[style][dualized_voice]
+
+    # feature_dicts_grouped = feature_extractors_for_subsets.get_global_features_dicts()
+
+    output_file("{}.html".format(save_path))
+
+    number_of_loops_per_subset_dict = {tag: len(original_patterns_per_style[tag]) for tag in
+                                       list(set(original_patterns_per_style.keys()))}
+
+    p = velocity_timing_heatmaps_scatter_plotter(
+        mixed_heatmaps,
+        mixed_scatters_dict,
+        number_of_loops_per_subset_dict=number_of_loops_per_subset_dict,
+        organized_by_drum_voice=regroup_by_drum_voice,
+        # denotes that the first key in heatmap and dict corresponds to drum voices
+        title_prefix=save_path.split("/")[-1],
+        plot_width=1200, plot_height_per_set=100, legend_fnt_size="8px",
+        synchronize_plots=True,
+        downsample_heat_maps_by=1
+    )
+
+    # Assign the panels to Tabs
+    tabs = separate_figues_by_tabs(p, tab_titles=list(mixed_heatmaps.keys()))
+
+    show(tabs)
+
+    return tabs
+
+# users = ["genis", ... , "luis"]
+def get_inter_drummer_heatmaps(root_folder, users, save_path="temp",
+                               separate_by_style=True, regroup_by_drum_voice=False):
+
+    mixed_heatmaps = {}
+    mixed_scatters_dict = {}
+
+    for user_ix, user in enumerate(users):
+        data_folder = os.path.join(root_folder, user)
+        if user_ix == 0:
+            original_patterns_per_style, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict = get_drummer_heatmap_dicts(
+                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice
+            )
+            mixed_heatmaps.update(original_heatmaps_dict)
+            mixed_scatters_dict.update(original_scatters_dict)
+        else:
+            _, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict = get_drummer_heatmap_dicts(
+                data_folder, separate_by_style=separate_by_style, regroup_by_drum_voice=regroup_by_drum_voice
+            )
+
+        for style in mixed_heatmaps.keys():
+            for dualized_voice in dualized_heatmaps_dict[style].keys():
+                tag = "{}_{}".format(dualized_voice, user)
+                mixed_heatmaps[style][tag] = dualized_heatmaps_dict[style][dualized_voice]
+                mixed_scatters_dict[style][tag] = dualized_scatters_dict[style][dualized_voice]
+
+    output_file("{}.html".format(save_path))
+
+    number_of_loops_per_subset_dict = {tag: len(original_patterns_per_style[tag]) for tag in
+                                       list(set(original_patterns_per_style.keys()))}
+
+    p = velocity_timing_heatmaps_scatter_plotter(
+        mixed_heatmaps,
+        mixed_scatters_dict,
+        number_of_loops_per_subset_dict=number_of_loops_per_subset_dict,
+        organized_by_drum_voice=regroup_by_drum_voice,
+        # denotes that the first key in heatmap and dict corresponds to drum voices
+        title_prefix=save_path.split("/")[-1],
+        plot_width=1200, plot_height_per_set=100, legend_fnt_size="8px",
+        synchronize_plots=True,
+        downsample_heat_maps_by=1
+    )
+
+    # Assign the panels to Tabs
+    tabs = separate_figues_by_tabs(p, tab_titles=list(mixed_heatmaps.keys()))
+
+    show(tabs)
+
+    return tabs
+
+def get_drummer_heatmap_dicts(data_folder, separate_by_style=True, regroup_by_drum_voice=False):
 
     # Master Folder for each of the 72 files
     full_paths = glob.glob(os.path.join(data_folder, "*"))
@@ -169,7 +259,6 @@ def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_b
         subsets_from_gmd=False
     )
 
-    regroup_by_drum_voice = False
     original_heatmaps_dict, original_scatters_dict = feature_extractors_for_originals.get_velocity_timing_heatmap_dicts(
         s=(4, 10),
         bins=[32 * 8, 127],
@@ -180,37 +269,4 @@ def get_dualization_heatmap_from_midis(data_folder, save_path="temp", separate_b
         bins=[32 * 8, 127],
         regroup_by_drum_voice=regroup_by_drum_voice)
 
-    mixed_heatmaps = {}
-    mixed_scatters_dict = {}
-    mixed_heatmaps.update(original_heatmaps_dict)
-    mixed_scatters_dict.update(original_scatters_dict)
-    for style in mixed_heatmaps.keys():
-        for dualized_voice in dualized_heatmaps_dict[style].keys():
-            mixed_heatmaps[style][dualized_voice] = dualized_heatmaps_dict[style][dualized_voice]
-            mixed_scatters_dict[style][dualized_voice] = dualized_scatters_dict[style][dualized_voice]
-
-    # feature_dicts_grouped = feature_extractors_for_subsets.get_global_features_dicts()
-
-    output_file("{}.html".format(save_path))
-
-    number_of_loops_per_subset_dict = {tag: len(original_patterns_per_style[tag]) for tag in
-                                       list(set(original_patterns_per_style.keys()))}
-
-    p = velocity_timing_heatmaps_scatter_plotter(
-        mixed_heatmaps,
-        mixed_scatters_dict,
-        number_of_loops_per_subset_dict=number_of_loops_per_subset_dict,
-        organized_by_drum_voice=regroup_by_drum_voice,
-        # denotes that the first key in heatmap and dict corresponds to drum voices
-        title_prefix=save_path.split("/")[-1],
-        plot_width=1200, plot_height_per_set=100, legend_fnt_size="8px",
-        synchronize_plots=True,
-        downsample_heat_maps_by=1
-    )
-
-    # Assign the panels to Tabs
-    tabs = separate_figues_by_tabs(p, tab_titles=list(mixed_heatmaps.keys()))
-
-    show(tabs)
-
-    return tabs
+    return original_patterns_per_style, original_heatmaps_dict, original_scatters_dict, dualized_heatmaps_dict, dualized_scatters_dict
