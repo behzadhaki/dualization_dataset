@@ -1,3 +1,0 @@
-# MIDI note/CC name map
-47 hi-hat
-38 Snare

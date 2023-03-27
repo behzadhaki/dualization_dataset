@@ -63,7 +63,6 @@ ROLAND_REDUCED_MAPPING = {
     "RIDE":  [51, 53, 59]
 }
 
-
 # GrooveToolbox 5 Part Kit Mappings
 Groove_Toolbox_5Part_keymap = {
     "kick": [36, 35],
@@ -122,11 +121,29 @@ ROLAND_TD_17_Full_map = {
 }
 
 
-DUALIZATION_ROLAND_HAND_DRUM = {
-    "Left": [60, 48, 72],
-    "Right": [74, 62, 86]
-}
+def get_drum_mapping_using_label(drum_map_label):
+    """
+    returns the mapping dictionary for a given drum map using a string label identifier
 
-DUALIZATION_ROLAND_HAND_DRUM_MIXED = {
-    "Left&Right": [60, 48, 72, 74, 62, 86]
-}
+    :param drum_map_label: (string matching the variable names above
+
+    :return: a dictionary of drum maps
+    """
+    assert drum_map_label in ["GM1_FULL_MAP", "ROLAND_REDUCED_MAPPING", "Groove_Toolbox_5Part_keymap",
+                              "Groove_Toolbox_3Part_keymap", "Groove_Toolbox_GM_keymap", "ROLAND_TD_17_Full_map"
+                              ], "DRUM MAP LABEL IS INCORRECT"
+
+    if drum_map_label == "GM1_FULL_MAP":
+        return GM1_FULL_MAP
+    elif drum_map_label == "ROLAND_REDUCED_MAPPING":
+        return ROLAND_REDUCED_MAPPING
+    elif drum_map_label == "Groove_Toolbox_5Part_keymap":
+        return Groove_Toolbox_5Part_keymap
+    elif drum_map_label == "Groove_Toolbox_3Part_keymap":
+        return Groove_Toolbox_3Part_keymap
+    elif drum_map_label == "Groove_Toolbox_GM_keymap":
+        return Groove_Toolbox_GM_keymap
+    elif drum_map_label == "ROLAND_TD_17_Full_map":
+        return ROLAND_TD_17_Full_map
+
+

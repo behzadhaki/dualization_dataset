@@ -1,1 +1,0 @@
-This folder contains the data from the initial two sessions conducted on Genis and Ignasi (Sets T1 and T2 - No repetitions)
