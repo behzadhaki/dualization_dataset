@@ -1,1 +1,0 @@
-all the dualisations are very different between each other. the loop itself looks quite complicated to dualise in general 
