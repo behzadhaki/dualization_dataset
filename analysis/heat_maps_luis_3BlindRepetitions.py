@@ -11,7 +11,7 @@ sys.path.insert(1, "../../")
 sys.path.insert(1, "../")
 
 ############ QUICK GUIDE FOR LOADING DATA
-midi_folder = 'processed_data/InterDrummer_Repetitions/luis/' \
+midi_folder = 'midi_files/InterDrummer_Repetitions/luis/' \
                 'drummer1-eval_session-4_soul-groove4_80_beat_4-4_best_2bar_segment_6'
 
 # Plotting Dualization
@@ -26,7 +26,7 @@ hvo_seq_original.to_html_plot(show_figure=False)
 
 ############ QUICK GUIDE FOR LOADING DATA
 # get drummers and filenames
-data_folder = "processed_data/InterDrummer_Repetitions/luis"
+data_folder = "midi_files/InterDrummer_Repetitions/luis"
 
 
 ## Plot the heatmaps
@@ -34,16 +34,16 @@ data_folder = "processed_data/InterDrummer_Repetitions/luis"
 get_dualization_heatmap_from_midis(data_folder, save_path="heatmaps/LuisSessionAB_ALL_STYLES_MIXED", separate_by_style=False)"""
 
 
-get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+get_inter_drummer_heatmaps("midi_files/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
                            save_path="heatmaps/InterDrummer_Separataed_BY_Style",
                            separate_by_style=True, mix_hands=False)
-get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+get_inter_drummer_heatmaps("midi_files/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
                            save_path="heatmaps/InterDrummer_ALL_STYLES_MIXED",
                            separate_by_style=False, mix_hands=False)
 
-get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+get_inter_drummer_heatmaps("midi_files/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
                            save_path="heatmaps/InterDrummer_LRMixed_Separataed_BY_Style",
                            separate_by_style=True, mix_hands=True)
-get_inter_drummer_heatmaps("processed_data/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
+get_inter_drummer_heatmaps("midi_files/InterDrummer_Repetitions/", ["genis", "ignasi", "luis", "morgan", "pau"],
                            save_path="heatmaps/InterDrummer_LRMixed_ALL_STYLES_MIXED",
                            separate_by_style=False, mix_hands=True)

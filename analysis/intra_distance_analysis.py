@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import os, glob
 
-midi_filename = 'processed_data/InterDrummer_Repetitions/genis/' \
+midi_filename = 'midi_files/InterDrummer_Repetitions/genis/' \
                 'drummer7-session3-131_soul_105_beat_4-4_best_2bar_segment_9/repetition_2.mid'
 
 # Plotting Dualization
@@ -18,7 +18,7 @@ squeezed_hits = midi_to_123format(midi_filename)
 squeezed_hits
 
 # get drummers and filenames
-root_data_dir = "processed_data/InterDrummer_Repetitions"
+root_data_dir = "midi_files/InterDrummer_Repetitions"
 drummers = ["genis", "ignasi", "morgan", "pau"]
 original_fname = "original.mid"
 repetition_fnames = ["repetition_0.mid", "repetition_1.mid", "repetition_2.mid"]

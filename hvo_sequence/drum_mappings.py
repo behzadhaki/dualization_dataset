@@ -121,6 +121,16 @@ ROLAND_TD_17_Full_map = {
 }
 
 
+DUALIZATION_ROLAND_HAND_DRUM = {
+
+    "Left  Hand": [76, 60, 48, 72, 67],
+    "Right  Hand": [77, 74, 62, 86]
+}
+
+DUALIZATION_ROLAND_HAND_DRUM_MIXED = {
+    "Left&Right": [76, 77, 60, 48, 72, 74, 62, 86]
+}
+
 def get_drum_mapping_using_label(drum_map_label):
     """
     returns the mapping dictionary for a given drum map using a string label identifier
