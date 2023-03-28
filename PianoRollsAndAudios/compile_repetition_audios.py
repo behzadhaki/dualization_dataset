@@ -34,8 +34,6 @@ def save_repetitions_to_audio(root_path, save_directory, num_participants, num_r
                                         sf_path="hvo_sequence/soundfonts/Standard_Drum_Kit.sf2")
                 # print(os.path.join(save_directory,repetition_group[rep_ix]+'.wav'))
 
-
-
         original = midi_to_hvo_sequence(
             filename=os.path.join(os.path.join(test_sample, f'original.mid')),
             drum_mapping=ROLAND_REDUCED_MAPPING,
