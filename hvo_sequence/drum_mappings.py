@@ -63,6 +63,18 @@ ROLAND_REDUCED_MAPPING = {
     "RIDE":  [51, 53, 59]
 }
 
+# MAGENTA MAPPING
+ROLAND_REDUCED_MAPPING_HEATMAPS = {
+    "1 KICK": [36],
+    "2 SNARE": [38, 37, 40],
+    "3 HH CLOSED": [42, 22, 44],
+    "4 HH OPEN": [46, 26],
+    "5 RIDE":  [51, 53, 59],
+    "6 TOMS": [43, 58, 47, 45, 50, 48],
+    "7 CRASH": [49, 52, 55, 57],
+
+}
+
 # GrooveToolbox 5 Part Kit Mappings
 Groove_Toolbox_5Part_keymap = {
     "kick": [36, 35],
