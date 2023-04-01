@@ -64,7 +64,7 @@ def simplify_tags(tags, separator="_AND_"):
         tags_.append(tag.split(separator)[0])
     return tags_
 
-def heat_map_plot(x, y, s, bins=[32*10, 127]):
+def heat_map_plot(x, y, s, bins=None):
     """
     Converts a set of x,y scatter locations to heat maps
     :param x:               x values for dots in scatter plot
@@ -76,9 +76,13 @@ def heat_map_plot(x, y, s, bins=[32*10, 127]):
             extent          [starting x position, ending x position, starting y, ending y] for the created heat map
 
     """
+    if bins is None:
+        bins = [32 * 4, 64]
+
     heatmap, xedges, yedges = np.histogram2d(x, y, bins=bins)
     heatmap = gaussian_filter(heatmap, sigma=s)
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+
     return heatmap.T, extent
 
 

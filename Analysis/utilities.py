@@ -4,6 +4,7 @@ import os, glob
 from eval.GrooveEvaluator import Evaluator
 from bokeh.models import Tabs
 import numpy as np
+import pandas as pd
 
 
 # search for all midi files in the root path
@@ -405,3 +406,168 @@ def violinplot_grid(data, ncols=2, figsize=(9, 4), fontsize=6):
         axes[i].axis("off")
     fig.tight_layout()
     return fig, axes
+
+
+def regroup_repetitions_by_master_id(repetitions_dict_per_participant):
+    """
+    Regroups the repetitions by the master id of the piece.
+    :param repetitions_dict_per_participant: A dictionary of repetitions per participant. dict(list(hvo_seq))
+
+    :return: A dictionary of repetitions per participant, regrouped by the master id of the piece. dict(dict(list(hvo_seq)))
+    """
+    regrouped_repetitions = dict()
+    for participant_id in range(1, len(repetitions_dict_per_participant.keys())+1):
+        if f"Participant_{participant_id}" not in regrouped_repetitions:
+            regrouped_repetitions[f"Participant_{participant_id}"] = dict()
+        for repetition in repetitions_dict_per_participant[f"Participant_{participant_id}"]:
+            if repetition.metadata["master_id"] not in regrouped_repetitions[f"Participant_{participant_id}"]:
+                regrouped_repetitions[f"Participant_{participant_id}"][repetition.metadata["master_id"]] = list()
+            regrouped_repetitions[f"Participant_{participant_id}"][repetition.metadata["master_id"]].append(repetition)
+    return regrouped_repetitions
+
+
+def get_repetitions_dict_separated_by_participant(root_path, regroup_by_master_id=False, participants_id=None):
+    repetitions_per_participant = dict()
+
+    for participant_id in participants_id:
+        print(f"Participant_{participant_id}")
+        repetitions_per_participant[f"Participant_{participant_id}"] = get_repetition_files_as_hvo_seqs(
+            root_path=root_path,
+            extra_filter="Participant_{}".format(participant_id)
+        )
+
+    if regroup_by_master_id:
+        return regroup_repetitions_by_master_id(repetitions_per_participant)
+    else:
+        return repetitions_per_participant
+
+
+def edit_distance(a, b):
+    m, n = len(a), len(b)
+    dp = [[0] * (n+1) for _ in range(m+1)]
+    for i in range(m+1):
+        dp[i][0] = i
+    for j in range(n+1):
+        dp[0][j] = j
+    for i in range(1, m+1):
+        for j in range(1, n+1):
+            if a[i-1] == b[j-1]:
+                dp[i][j] = dp[i-1][j-1]
+            else:
+                dp[i][j] = min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+1)
+    return dp[m][n]
+
+def jaccard_similarity(a, b):
+    set_a = set([i for i, x in enumerate(a) if x == 1])
+    set_b = set([i for i, x in enumerate(b) if x == 1])
+    intersection = len(set_a.intersection(set_b))
+    union = len(set_a.union(set_b))
+    return intersection / union
+def extract_intra_participant_distances_and_similarities(regrouped_repetitions, return_separated_by_master_id=True):
+    Edit_Distances = {}
+    Jacard_Similarities = {}
+    for participant_id, repetitions in regrouped_repetitions.items():
+        Edit_Distances[participant_id] = {}
+        Jacard_Similarities[participant_id] = {}
+        for master_id in repetitions.keys():
+            if master_id not in Edit_Distances[participant_id]:
+                Edit_Distances[participant_id][master_id] = []
+                Jacard_Similarities[participant_id][master_id] = []
+            samples = [s.flatten_voices(voice_idx=0, reduce_dim=0)[:, 0] for s in repetitions[master_id]]
+            for i in range(len(samples)):
+                for j in range(i+1, len(samples)):
+                    Edit_Distances[participant_id][master_id].append(edit_distance(samples[i], samples[j]))
+                    Jacard_Similarities[participant_id][master_id].append(jaccard_similarity(samples[i], samples[j]))
+    if return_separated_by_master_id:
+        return Edit_Distances, Jacard_Similarities
+    else:
+        Edit_Distances = {k: [v for master_id in Edit_Distances[k].keys() for v in Edit_Distances[k][master_id]] for k in Edit_Distances.keys()}
+        Jacard_Similarities = {k: [v for master_id in Jacard_Similarities[k].keys() for v in Jacard_Similarities[k][master_id]] for k in Jacard_Similarities.keys()}
+        return Edit_Distances, Jacard_Similarities
+
+def extract_inter_participant_distances_and_similarities(regrouped_repetitions):
+    Edit_Distances = {}
+    Jacard_Similarities = {}
+    participant_ids = list(regrouped_repetitions.keys())
+    master_ids = list(regrouped_repetitions[participant_ids[0]].keys())
+
+    for master_id in master_ids:
+        for i in range(len(participant_ids)):
+            for j in range(i+1, len(participant_ids)):
+                new_key = f"{participant_ids[i]} - {participant_ids[j]}"
+                new_key = "P" + new_key.replace("Participant_", " ")
+                if new_key not in Edit_Distances:
+                    Edit_Distances[new_key] = []
+                    Jacard_Similarities[new_key] = []
+                samples_i = [s.flatten_voices(voice_idx=0, reduce_dim=0)[:, 0] for s in regrouped_repetitions[participant_ids[i]][master_id]]
+                samples_j = [s.flatten_voices(voice_idx=0, reduce_dim=0)[:, 0] for s in regrouped_repetitions[participant_ids[j]][master_id]]
+                for sample_i in samples_i:
+                    for sample_j in samples_j:
+                        Edit_Distances[new_key].append(edit_distance(sample_i, sample_j))
+                        Jacard_Similarities[new_key].append(jaccard_similarity(sample_i, sample_j))
+
+    return Edit_Distances, Jacard_Similarities
+
+
+
+
+# side-by-side violin plots for Edit Distances
+# imports
+import holoviews as hv
+hv.extension('bokeh')
+from holoviews import opts
+
+def get_violin_plots(data_dict, violin_width=200, violin_height= 60, font_size=6, min_=None, max_=None, single_axis=True):
+    # returns a single holoviews plot with violin plots for each participant
+    # data_dict is a dictionary of lists {"participant_id": [list of edit distances]}
+
+    # get the violin plots
+    if not single_axis:
+        violin_plots = []
+        for participant_id, distances in data_dict.items():
+            violin_plots.append(hv.Violin(distances, label="P"+participant_id.replace("Participant_", " ")))
+
+
+         # get the violin plots side-by-side
+        violin_plots = hv.Layout(violin_plots).cols(len(data_dict.keys()))
+    else:
+        # use a single plot rather than multiple plots layed out side-by-side
+        # PANDAS DATAFRAME
+        data = []
+        for participant_id, distances in data_dict.items():
+            data.extend([[participant_id, d] for d in distances])
+        data = pd.DataFrame(data, columns=["Participant", "data"])
+        violin_plots = hv.Violin(data, kdims=["Participant"], vdims=["data"])
+
+
+    # set the plot options
+    violin_plots.opts(
+        opts.Violin(
+            width=violin_width,
+            height=violin_height,
+            show_legend=False,
+            show_grid=True,
+            xlabel="",
+            ylabel="",
+            xrotation=45,
+            yrotation=0,
+        )
+    )
+
+    # set lowest y value to 0
+    violin_plots.opts(
+        opts.Violin(
+            ylim=(min_, max_),
+        )
+    )
+
+    # change font size for all the labels
+    violin_plots.opts(
+        opts.Labels(
+            text_font_size=f"{font_size}px",
+            text_color="black",
+            text_align="center",
+            text_baseline="middle",
+        )
+    )
+    return violin_plots
