@@ -3,10 +3,11 @@ from hvo_sequence.drum_mappings import ROLAND_REDUCED_MAPPING, DUALIZATION_ROLAN
 import os, glob
 from eval.GrooveEvaluator import Evaluator
 from bokeh.models import Tabs
+import numpy as np
 
 
 # search for all midi files in the root path
-def get_repetition_files_as_hvo_seqs(root_path, print_missed_files=False, extra_filter=None):
+def get_repetition_files_as_hvo_seqs(root_path, print_missed_files=False, extra_filter=None,  mapper_fn=None):
     mapping = DUALIZATION_ROLAND_HAND_DRUM.copy()
 
     midi_files = glob.glob(os.path.join(root_path, "**/*.mid"), recursive=True)
@@ -24,7 +25,6 @@ def get_repetition_files_as_hvo_seqs(root_path, print_missed_files=False, extra_
 
         if hvo_seq is not None:
             hvo_seq.adjust_length(32)
-            hvo_sequences.append(hvo_seq)
             try:
                 repetition = int(midi_file.split('Participant_')[-1].split("_")[-1].replace(".mid", "")) + 1
             except:
@@ -37,9 +37,18 @@ def get_repetition_files_as_hvo_seqs(root_path, print_missed_files=False, extra_
                 "repetition": repetition,
             })
 
+            if mapper_fn is not None:
+                for i, j in zip(range(hvo_seq.number_of_steps), range(hvo_seq.number_of_voices)):
+                    hvo_seq.hvo[i, j + hvo_seq.number_of_voices] = mapper_fn(
+                        hvo_seq.hvo[i, j + hvo_seq.number_of_voices])
+                    print("Done")
+
+            hvo_sequences.append(hvo_seq)
+
+
     return hvo_sequences
 
-def get_original_files_as_hvo_seqs(root_path, print_missed_files=False, extra_filter=None):
+def get_original_files_as_hvo_seqs(root_path, print_missed_files=False, extra_filter=None,  mapper_fn=None):
     mapping = ROLAND_REDUCED_MAPPING_HEATMAPS.copy()
 
     midi_files = glob.glob(os.path.join(root_path, "**/original.mid"), recursive=True)
@@ -67,6 +76,12 @@ def get_original_files_as_hvo_seqs(root_path, print_missed_files=False, extra_fi
                 "style": midi_file.split('/')[-2].split('.')[0].split('_')[1].split('-')[0],
                 "repetition": "NA",
             })
+
+            if mapper_fn is not None:
+                for i, j in zip(range(hvo_seq.number_of_steps), range(hvo_seq.number_of_voices)):
+                    hvo_seq.hvo[i, j + hvo_seq.number_of_voices] = mapper_fn(
+                        hvo_seq.hvo[i, j + hvo_seq.number_of_voices])
+
             hvo_sequences.append(hvo_seq)
 
         for participant_id in [1, 2, 3, 4]:
@@ -147,7 +162,7 @@ def get_combined_hands(hvo_sequences):
 
 def getRepetitionHeatmaps(root_path, divs_per_16_note_grid=12,
                           separate_by_participant_ids=None, redo_y_labels=False,
-                          resize_witdth_ratio=1, resize_height_ratio=1):
+                          resize_witdth_ratio=1, resize_height_ratio=1,  mapper_fn=None):
     """
     :param root_path: path to the root folder of the dataset (where midi files are located)
     :param participant_ids: list of participant ids to be used for the evaluation (if None, all participants are used)
@@ -168,7 +183,7 @@ def getRepetitionHeatmaps(root_path, divs_per_16_note_grid=12,
         list_of_filter_dicts_for_subsets = [
             {"performer": [participant_id]} for participant_id in separate_by_participant_ids]
 
-    hvo_sequences = get_repetition_files_as_hvo_seqs(root_path)
+    hvo_sequences = get_repetition_files_as_hvo_seqs(root_path, mapper_fn=mapper_fn)
 
     evaluator_test_set = Evaluator(
         hvo_sequences,
@@ -241,7 +256,7 @@ def getRepetitionHeatmaps(root_path, divs_per_16_note_grid=12,
 
 def getSimpleORComplexHeatmaps(root_path, need_simple, divs_per_16_note_grid=12,
                           separate_by_participant_ids=None, redo_y_labels=False,
-                          resize_witdth_ratio=1, resize_height_ratio=1):
+                          resize_witdth_ratio=1, resize_height_ratio=1, mapper_fn=None):
     """
     :param root_path: path to the root folder of the dataset (where midi files are located)
     :param participant_ids: list of participant ids to be used for the evaluation (if None, all participants are used)
@@ -267,7 +282,7 @@ def getSimpleORComplexHeatmaps(root_path, need_simple, divs_per_16_note_grid=12,
     else:
         extra_filter = "complex"
 
-    hvo_sequences = get_repetition_files_as_hvo_seqs(root_path, extra_filter=extra_filter)
+    hvo_sequences = get_repetition_files_as_hvo_seqs(root_path, extra_filter=extra_filter, mapper_fn=mapper_fn)
 
     evaluator_test_set = Evaluator(
         hvo_sequences,
@@ -337,3 +352,56 @@ def getSimpleORComplexHeatmaps(root_path, need_simple, divs_per_16_note_grid=12,
     show_tabs = [tab for tab in final_tabs.tabs]
     show_tabs.extend([tab for tab in fig_originals.tabs])
     return Tabs(tabs=show_tabs)
+
+
+def get_velocities_from_original_midis(root_path, voice_idx=None):
+    # Velocity Matching
+    original_samples = get_original_files_as_hvo_seqs(
+        root_path= root_path)
+    original_samples = sorted(original_samples, key=lambda x: x.metadata["master_id"])
+    original_samples = original_samples[::5] # original files are repeated 5 times
+    vels = np.array([sample.get("v") for sample in original_samples])
+    if voice_idx is not None:
+        vels = vels[:, :, voice_idx]
+    non_zero_vels_gt = np.nonzero(np.array(vels))
+    return vels[non_zero_vels_gt]
+
+def get_velocities_from_repetition_midis(root_path, mapper_fn=None):
+    # Velocity Matching
+    original_samples = get_repetition_files_as_hvo_seqs(
+        root_path= root_path, mapper_fn=mapper_fn)
+    original_samples = sorted(original_samples, key=lambda x: x.metadata["master_id"])
+    original_samples = original_samples[::5]
+    vels = np.array([sample.get("v") for sample in original_samples])
+    non_zero_vels_gt = np.nonzero(np.array(vels))
+    return vels[non_zero_vels_gt]
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+sns.set(style="whitegrid")
+
+def violinplot_with_boxplot(data, title, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    sns.violinplot(data=data, ax=ax)
+    #sns.boxplot(data=data, ax=ax, color="white")
+    ax.set_title(title)
+    ax.set_xlabel("Velocity")
+    ax.set_ylabel("Count")
+    return ax
+
+
+def violinplot_grid(data, ncols=2, figsize=(9, 4), fontsize=6):
+    nrows = int(np.ceil(len(data) / ncols))
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    axes = axes.flatten()
+    for i, (title, d) in enumerate(data.items()):
+        violinplot_with_boxplot(d, title, ax=axes[i])
+        axes[i].tick_params(labelsize=fontsize)
+    for i in range(len(data), len(axes)):
+        axes[i].axis("off")
+    fig.tight_layout()
+    return fig, axes
