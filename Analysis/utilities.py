@@ -571,3 +571,66 @@ def get_violin_plots(data_dict, violin_width=200, violin_height= 60, font_size=6
         )
     )
     return violin_plots
+
+def get_heatmap_for_hvo_sequences(hvo_sequences, redo_y_labels, participant_ids):
+    figs = []
+    list_of_filter_dicts_for_subsets = [
+                {"performer": [participant_id]} for participant_id in participant_ids]
+
+    evaluator_test_set = Evaluator(
+            get_combined_hands(hvo_sequences),
+            list_of_filter_dicts_for_subsets=list_of_filter_dicts_for_subsets,
+            _identifier="reps_tested_with_four_participants",
+            n_samples_to_use=-1,
+            max_hvo_shape=(32, 6),
+            need_hit_scores=False,
+            need_velocity_distributions=False,
+            need_offset_distributions=False,
+            need_rhythmic_distances=False,
+            need_heatmap=True,
+            need_global_features=False,
+            need_audio=False,
+            need_piano_roll=False,
+            n_samples_to_synthesize_and_draw=5,  # "all",
+            disable_tqdm=False
+        )
+
+    # create dummy predictions
+    evaluator_test_set.predictions = evaluator_test_set.get_ground_truth_hvos_array()# get agreement heatmaps
+    fig_combined = evaluator_test_set.get_velocity_heatmaps(bins=[32 * 12, 64])
+
+    fig_combined.tabs[0].title = "Hands Overlayed"
+    fig_combined.tabs[0]._property_values['child'].title.text = "Hands Overlayed"
+    figs.append(fig_combined.tabs[0])
+
+    evaluator_test_set = Evaluator(
+            hvo_sequences,
+            list_of_filter_dicts_for_subsets=list_of_filter_dicts_for_subsets,
+            _identifier="reps_tested_with_four_participants",
+            n_samples_to_use=-1,
+            max_hvo_shape=(32, 6),
+            need_hit_scores=False,
+            need_velocity_distributions=False,
+            need_offset_distributions=False,
+            need_rhythmic_distances=False,
+            need_heatmap=True,
+            need_global_features=False,
+            need_audio=False,
+            need_piano_roll=False,
+            n_samples_to_synthesize_and_draw=5,  # "all",
+            disable_tqdm=False
+        )
+
+    # create dummy predictions
+    evaluator_test_set.predictions = evaluator_test_set.get_ground_truth_hvos_array()# get agreement heatmaps
+    fig_combined = evaluator_test_set.get_velocity_heatmaps(bins=[32 * 12, 64])
+
+    figs.append(fig_combined.tabs[0])
+    figs.append(fig_combined.tabs[1])
+
+    figs = Tabs(tabs=figs)
+    if redo_y_labels:
+        for tab in figs.tabs:
+            tab._property_values['child'].yaxis[0].major_label_overrides = {loc: f"Participant {x}" for x, loc in
+                                                               zip(participant_ids, tab._property_values['child'].yaxis[0].major_label_overrides.keys())}
+    return figs
