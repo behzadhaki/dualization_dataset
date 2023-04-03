@@ -5,6 +5,8 @@ from eval.GrooveEvaluator import Evaluator
 from bokeh.models import Tabs
 import numpy as np
 import pandas as pd
+from bokeh.plotting import figure
+from bokeh.models import Panel, Range1d, HoverTool
 
 
 # search for all midi files in the root path
@@ -634,3 +636,88 @@ def get_heatmap_for_hvo_sequences(hvo_sequences, redo_y_labels, participant_ids)
             tab._property_values['child'].yaxis[0].major_label_overrides = {loc: f"Participant {x}" for x, loc in
                                                                zip(participant_ids, tab._property_values['child'].yaxis[0].major_label_overrides.keys())}
     return figs
+
+
+def plot_dice(dice_scores_per_step, title, y_axis_label, width=700, height=200, need_x_labels=True, need_y_labels=True):
+    p = figure(width=width, height=height, toolbar_location=None,
+           title=title)
+
+    # use colors:
+    # '#084594', '#4292c6', ,
+
+    # Histogram with four bars
+    edges = np.linspace(0, 32, 33)
+    p.quad(top=dice_scores_per_step, bottom=0, left=edges, right=edges+1,
+             fill_color='#9ecae1', line_color="white")
+
+    # change x tick labels to 0, 4, 8, 12, 16, 20, 24, 28, 32 at 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5
+    p.xaxis.ticker = [0., 4., 8., 12., 16., 20., 24., 28., 32.]
+    #p.xaxis.major_label_overrides = {0.24: '0', 4.5: '4', 8.5: '8', 12.5: '12', 16.5: '16', 20.5: '20', 24.5: '24', 28.5: '28', 32.5: '32'}
+    # place legend at top left (in a single row)
+    # place legend outside of plot
+    p.legend.location = "top_center"
+    p.legend.orientation = "horizontal"
+    p.legend.click_policy="hide"
+    p.legend.label_text_font_size = "8pt"
+    p.legend.spacing = 8
+    p.legend.glyph_height = 15
+    p.legend.glyph_width = 5
+    p.legend.label_height = 10
+    p.legend.label_width = 10
+    p.legend.margin = 2
+    p.legend.padding =5
+
+    # adjust y range to -0.2, 1
+    p.y_range = Range1d(0, 1.2)
+    p.yaxis.ticker = [0., 0.2, 0.4, 0.6, 0.8, 1.0]
+    p.yaxis.major_label_overrides = {0.0: '0', 0.2: '0.2', 0.4: '0.4', 0.6: '0.6', 0.8: '0.8', 1.0: '1.0'}
+    p.xaxis.ticker = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5, 21.5, 22.5, 23.5, 24.5, 25.5, 26.5, 27.5, 28.5, 29.5, 30.5, 31.5, 32.5]
+    p.xaxis.major_label_overrides = {0.5: '1', 1.5: '', 2.5: '', 3.5: '', 4.5: '5', 5.5: '', 6.5: '', 7.5: '', 8.5: '9', 9.5: '', 10.5: '', 11.5: '', 12.5: '13', 13.5: '', 14.5: '', 15.5: '', 16.5: '17', 17.5: '', 18.5: '', 19.5: '', 20.5: '21', 21.5: '', 22.5: '', 23.5: '', 24.5: '25', 25.5: '', 26.5: '', 27.5: '', 28.5: '29', 29.5: '', 30.5: '', 31.5: '', 32.5: '33'}
+    if need_y_labels:
+        p.yaxis.axis_label = y_axis_label
+    else:
+        p.yaxis.axis_label = ""
+
+    if need_x_labels:
+        p.xaxis.axis_label = "Grid Line (16th Note)"
+    else:
+        p.xaxis.axis_label = ""
+
+    # thick grid lines at 0, 4, 8, 12, 16
+
+    p.xgrid.ticker = [0.5, 4.5, 8.5, 12.5, 16.5]
+    p.x_range = Range1d(-0.1, 16)
+    # horizontal infinite line at min and max
+    min_dice = min(dice_scores_per_step)
+    max_dice = max(dice_scores_per_step)
+    p.line(x=[0, 16], y=[min_dice, min_dice], line_width=1, line_color='grey', line_dash='dashed', legend_label=f'min: {min_dice:.2f}')
+    p.line(x=[0, 16], y=[max_dice, max_dice], line_width=1, line_color='black', line_dash='dashed', legend_label=f'max: {max_dice:.2f}')
+
+    # draw vertical lines at 0, 4, 8, 12, 16
+    p.line(x=[0.5, 0.5], y=[0, 1.4], line_width=2, line_color='black')
+    p.line(x=[4.5, 4.5], y=[0, 1.4], line_width=2, line_color='black')
+    p.line(x=[8.5, 8.5], y=[0, 1.4], line_width=2, line_color='black')
+    p.line(x=[12.5, 12.5], y=[0, 1.4], line_width=2, line_color='black')
+
+    # single row legend
+    p.legend.location = "top_center"
+    p.legend.orientation = "horizontal"
+    p.legend.click_policy="hide"
+    p.legend.label_text_font_size = "8pt"
+    p.legend.spacing = 8
+    p.legend.glyph_height = 15
+    p.legend.glyph_width = 5
+    p.legend.label_height = 10
+    p.legend.label_width = 10
+
+    # keep legend narrow and flush with plot
+    p.legend.margin = 2
+    p.legend.padding =5
+
+    # make legend background fully opaque
+    p.legend.background_fill_alpha = 1.0
+
+
+    # title font size
+    p.title.text_font_size = '9pt'
+    return p
