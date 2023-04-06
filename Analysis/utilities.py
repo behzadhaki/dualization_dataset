@@ -721,3 +721,4 @@ def plot_dice(dice_scores_per_step, title, y_axis_label, width=700, height=200, 
     # title font size
     p.title.text_font_size = '9pt'
     return p
+
