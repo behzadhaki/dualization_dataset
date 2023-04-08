@@ -804,3 +804,323 @@ def get_hvo_idxs_for_voice(voice_idx, n_voices):
     return h_idx, v_idx, o_idx
 
 
+########################################################################################################################
+# Argand Tools for Balance, Evenness and Entropy
+########################################################################################################################
+from bokeh.palettes import Category10
+from bokeh.models import Panel, Range1d
+from bokeh.plotting import figure
+
+
+#%%
+def get16stepSegs(hvo_seq_): # ported to hvo_seq
+    nsteps = hvo_seq_.number_of_steps
+    # full multiple of 16
+    if nsteps % 16 != 0:
+        hvo_seq_.adjust_length(16 * (nsteps // 16 + 1))
+        nsteps = hvo_seq_.number_of_steps
+
+    _1bar_hvo_seqs = []
+    for start in range(0, nsteps, 16):
+        temp = hvo_seq_.copy()
+        temp.hvo = temp.hvo[start:start+16, :]
+        _1bar_hvo_seqs.append(temp)
+    return _1bar_hvo_seqs
+
+
+
+def convert_1d_pattern_to_argand_vector(pattern, offsets=None):
+    assert pattern.ndim == 1, "pattern must be 1d array"
+    assert pattern.shape[0] == 16, "pattern must be 16 elements long"
+    assert offsets is None or offsets.shape[0] == 16, "offsets must be 16 elements long"
+
+    hit_indices = np.where(pattern == 1)
+    if offsets is not None:
+        timings = np.array([index + offsets[index] for index in hit_indices])
+    else:
+        timings = np.array([index for index in hit_indices])
+
+    return np.exp(2 * np.pi * 1j * timings / pattern.shape[0])[0], hit_indices[0]
+
+def getEntropyOf1dArgandVector(hit_locations):
+    n_onsets = hit_locations.shape[0]
+    IOIs = sorted((hit_locations[1:] - hit_locations[:-1]))
+    unique_IOIs, counts = np.unique(IOIs, return_counts=True)
+    histogram = np.zeros((16))
+    histogram[unique_IOIs] = counts
+    normalized_histogram = histogram / n_onsets
+    H_x = - np.log(normalized_histogram) * normalized_histogram /np.log(16)
+    return np.nansum(H_x)
+
+def getBalanceEvennessOf1dArgandVector(_1d_argand_vector):
+    dft = np.fft.fft(_1d_argand_vector)
+    K = _1d_argand_vector.shape[0]
+    balance = 1 - np.abs(dft[0]) / K
+    evenness = np.abs(dft[1]) / K
+    return balance, evenness
+
+
+def getBalanceEvennessEntropyOfHVO_Seq(_1_bar_hvo_seq, quantize_offsets=False, tappify=False, need_plot_data=False,
+                                       shift_colors_by=0,
+                                       identifier="", marker_size=10, marker_type="circle",
+                                       use_primary_colors=True, radius=1):
+    """If more than 1 voice in hvo_seq and tappify is false,
+    then the argand vector will be the appandation of the argand vectors of each voice
+
+Args:
+        hvo_seq (HVO_Seq): [description]
+        tappify (bool, optional): [description]. Defaults to False.
+
+Returns:
+        tuple: (balance list, evenness list, entropy list) where each index corresponds to a 1bar segment
+    """
+
+    _1_bar_hvo_seq.adjust_length(16)
+    num_voices = _1_bar_hvo_seq.number_of_voices
+    plot_data = []
+    if use_primary_colors:
+        colors = Category10[10]
+    else:
+        colors = [
+          '#8B0000', # Dark red (high contrast),
+          '#FFC0CB', # Pink (low contrast)
+          '#FFD700', # Gold (high contrast)
+          '#87CEEB', # Sky blue (low contrast)
+          '#FF8C00', # Dark orange (high contrast)
+          '#6A5ACD', # Slate blue (low contrast)
+          '#00CED1', # Dark turquoise (high contrast)
+          '#DB7093', # Pale violet red (low contrast)
+          '#FF69B4', # Hot pink (high contrast)
+          '#00FF7F', # Spring green (low contrast)
+          '#9932CC', # Dark orchid (high contrast)
+          '#00BFFF', # Deep sky blue (low contrast)
+          '#FF1493', # Deep pink (high contrast)
+          '#ADFF2F', # Green yellow (low contrast)
+          '#FF00FF'  # Magenta (low contrast)
+         ]
+
+    colors = colors[shift_colors_by:]
+
+    drum_voices = "Mixed " + " & ".join([key for key in _1_bar_hvo_seq.drum_mapping.keys()])
+    # remove ints from drum_voices
+    drum_voices = ''.join([i for i in drum_voices if not i.isdigit()])
+    # Every word should be capitalized only at the beginning of each word
+    drum_voices = drum_voices.title()
+
+    if tappify:
+        tapped = _1_bar_hvo_seq.flatten_voices(reduce_dim=True)
+        hits = tapped[:, 0]
+        offsets = tapped[:, 2]
+        if quantize_offsets:
+            offsets *= 0
+
+        hit_vels = tapped[:, 1]
+        pattern_argand_vec, hit_indices = convert_1d_pattern_to_argand_vector(hits, offsets)
+
+        if need_plot_data:
+            for hit_indices_ix, hit_index in enumerate(hit_indices):
+                plot_data.append(
+                    {
+                        "argand": pattern_argand_vec[hit_indices_ix],
+                        "hit_index": hit_index,
+                        "hit_vel": hit_vels[hit_indices_ix],
+                        "color": colors[0],
+                        "label": drum_voices,
+                        "identifier": identifier,
+                        "marker_type": marker_type,
+                        "marker_size": marker_size,
+                        "radius": radius
+                    }
+                )
+
+    else:
+        num_voices = _1_bar_hvo_seq.number_of_voices
+        drum_mapping = list(_1_bar_hvo_seq.drum_mapping.keys())
+        hit_indices, hit_vels = np.array([]), np.array([])
+        pattern_argand_vec_ = np.zeros((16))*1j
+        for voice_ix in range(num_voices):
+            hits = _1_bar_hvo_seq.get("h")[:, voice_ix]
+            if np.sum(hits) > 0:
+                vels = _1_bar_hvo_seq.get("v")[:, voice_ix]
+                offsets = _1_bar_hvo_seq.get("o")[:, voice_ix]
+                if quantize_offsets:
+                    offsets *= 0
+                voice_pattern_argand_vec, voice_hit_indices = convert_1d_pattern_to_argand_vector(hits, offsets)
+                pattern_argand_vec_[voice_hit_indices] += voice_pattern_argand_vec
+                hit_indices = np.append(hit_indices, voice_hit_indices.astype(int))
+                hit_vels = np.append(hit_vels, vels[voice_hit_indices])
+                if need_plot_data:
+                    for hit_indices_ix, hit_index in enumerate(voice_hit_indices):
+                        plot_data.append(
+                            {
+                                "argand": voice_pattern_argand_vec[hit_indices_ix],
+                                "hit_index": hit_index,
+                                "hit_vel": vels[hit_index],
+                                "color": colors[voice_ix],
+                                "label": drum_mapping[voice_ix],
+                                "identifier": identifier,
+                                "marker_type": marker_type,
+                                "marker_size": marker_size,
+                                "radius": radius
+                            }
+                        )
+
+        pattern_argand_vec = np.array([pattern_argand_vec_[ix] for ix in range(16) if np.abs(pattern_argand_vec_[ix]) != 0])
+
+    balance, evenness = getBalanceEvennessOf1dArgandVector(pattern_argand_vec)
+    entropy = getEntropyOf1dArgandVector(hit_indices.astype(int))
+
+    if need_plot_data:
+        return np.round(balance, 2), np.round(evenness, 2), np.round(entropy, 2), plot_data
+    else:
+        return np.round(balance, 2), np.round(evenness, 2), np.round(entropy, 2), None
+
+def draw1BarArgandVectorPlot(plot_data_, title="", plot_width=400, plot_height=400, line_width=0.3, line_color="black",
+                             color_with_vel_values=False):
+
+    if title == "":
+        title = "--"
+    fig = figure(plot_width=plot_width, plot_height=plot_height, title=title)
+
+    find_unique_radii = set([plot_datum["radius"] for plot_datum in plot_data_])
+    max_radius = max(find_unique_radii)
+
+    for radius in find_unique_radii:
+        if radius == max_radius:
+            line_width_ = line_width
+        else:
+            line_width_ = line_width / 2
+        # draw unit circle
+        fig.line(np.cos(np.linspace(0, 2*np.pi, 100)) * radius,
+                 np.sin(np.linspace(0, 2*np.pi, 100)) * radius,
+                 color=line_color, line_width=line_width_)
+
+        # draw markers on the unit circle separated equally by 22.5 degrees
+        xs = np.cos(np.linspace(0, 2*np.pi, 17)) * radius
+        ys = np.sin(np.linspace(0, 2*np.pi, 17)) * radius
+        fig.scatter(x=xs, y=ys, radius=0.005, color=line_color)
+
+    # draw circle at argand_val (polar coordinates)
+    for plot_datum in plot_data_:
+        argand_val = plot_datum["argand"]
+        legend_label = plot_datum["label"]
+        s = fig.scatter(x=[argand_val.real * plot_datum["radius"]], y=[argand_val.imag * plot_datum["radius"]],
+                        color=plot_datum["color"],
+                    fill_alpha=plot_datum["hit_vel"] if color_with_vel_values else 1,
+                        line_width=line_width,
+                        legend=f"{plot_datum['label']} ({plot_datum['identifier']})",
+                        marker=plot_datum["marker_type"], size=plot_datum["marker_size"])
+
+    fig.legend.click_policy="hide"
+    # legend with font size 8
+    fig.legend.label_text_font_size = "8pt"
+    fig.legend.glyph_height = 8
+    fig.legend.glyph_width = 8
+    fig.legend.spacing = 0
+    fig.legend.padding = 0
+    fig.legend.margin = 0
+
+    # legend in a single line
+    fig.legend.location = "top_left"
+
+    # x and y axis must have same range
+    fig.x_range = fig.y_range = Range1d(-1.5, 1.5)
+
+
+
+    # get rid of ticks and grid
+    fig.xaxis.visible = False
+    fig.yaxis.visible = False
+    fig.grid.visible = False
+
+    # draw a vertical and horizontal line at x=0, y=0
+    fig.line(x=[0, 0], y=[-max_radius, max_radius], color='black', line_width=0.3, line_dash=(2, 2))
+    fig.line(x=[-max_radius, max_radius], y=[0, 0], color='black', line_width=0.3, line_dash=(2, 2))
+
+    return fig
+
+def argandAnalysisWithPlots(first_hvo_seq, first_identifier="(A)", second_hvo_seq=None, second_identifier="(B)",
+                            quantize=False, quantize_reference=False, flatten=False, flatten_reference=False, plot_width=400, plot_height=400,
+                            title="", marker_size=12, line_width=0.3,
+                            line_color="black", color_with_vel_values=False):
+    balances_a, evennesses_a, entropies_a = [], [], []
+    balances_b, evennesses_b, entropies_b = [], [], []
+    argand_tabs = []
+
+    if second_hvo_seq is not None:
+        ref_plots_per_bar = []
+        for bar_hs in get16stepSegs(second_hvo_seq):
+            ref_Bal, ref_Ev, refEnt, ref_plot_data = getBalanceEvennessEntropyOfHVO_Seq(
+                bar_hs, quantize_offsets=quantize_reference, tappify=flatten_reference, need_plot_data=True,
+                identifier=second_identifier,marker_type="circle_x", marker_size=marker_size, use_primary_colors=False
+                , radius=0.6) #, shift_colors_by=len(hvo_seq.drum_mapping.keys()))
+            balances_b.append(ref_Bal)
+            evennesses_b.append(ref_Ev)
+            entropies_b.append(refEnt)
+            ref_plots_per_bar.append(ref_plot_data)
+
+    for bar_ix, bar_hs in enumerate(get16stepSegs(first_hvo_seq)):
+        balance, evenness, entropy, plot_data = getBalanceEvennessEntropyOfHVO_Seq(
+            bar_hs, quantize_offsets=quantize, tappify=flatten, need_plot_data=True,
+            identifier=first_identifier, marker_type="circle_x", marker_size=int(marker_size*1.2), use_primary_colors=True, radius=0.8)
+        title_ = f"{title} \n"
+        title_ += f"{first_identifier} | Bar {bar_ix + 1}, Balance = {balance}, Evenness = {evenness}, Entropy = {entropy} \n"
+        balances_a.append(balance)
+        evennesses_a.append(evenness)
+        entropies_a.append(entropy)
+        if balances_b:
+            if bar_ix < len(balances_b):
+                ref_plot_data = ref_plots_per_bar[bar_ix]
+                plot_data.extend(ref_plot_data)
+                title_ += f"{second_identifier} | Bar {bar_ix + 1}, Balance = {balances_b[bar_ix]}, Evenness = {evennesses_b[bar_ix]}, Entropy = {entropies_b[bar_ix]} \n"
+            else:
+                title_ += f"No corresponding bar in {second_identifier} for bar {bar_ix+1} in {first_identifier}"
+
+        if second_hvo_seq is not None:
+            ref_plot_data = ref_plots_per_bar[bar_ix]
+            plot_data.extend(ref_plot_data)
+        argand_tabs.append(draw1BarArgandVectorPlot(
+            plot_data, title=title_ ,
+            plot_width=plot_width, plot_height=plot_height, line_width=line_width, line_color=line_color,
+            color_with_vel_values=color_with_vel_values))
+
+    from bokeh.models import Panel, Tabs
+    tabs = Tabs(tabs=[Panel(child=fig, title=f"Bar {bar_ix+1}") for bar_ix, fig in enumerate(argand_tabs)])
+    return balances_a, evennesses_a, entropies_a, tabs
+
+
+def argandAnalysis(hvo_seq, quantize=False, flatten=False):
+    balances, evennesses, entropies = [], [], []
+    argand_tabs = []
+
+
+    for bar_ix, bar_hs in enumerate(get16stepSegs(hvo_seq)):
+        balance, evenness, entropy, _ = getBalanceEvennessEntropyOfHVO_Seq(bar_hs, quantize_offsets=quantize, tappify=flatten, need_plot_data=False)
+        balances.append(balance)
+        evennesses.append(evenness)
+        entropies.append(entropy)
+
+    return balances, evennesses, entropies
+
+def jaccard_similarity(a, b):
+    set_a = set([i for i, x in enumerate(a) if x == 1])
+    set_b = set([i for i, x in enumerate(b) if x == 1])
+    intersection = len(set_a.intersection(set_b))
+    union = len(set_a.union(set_b))
+    return intersection / union
+
+def edit_distance(a, b):
+    m, n = len(a), len(b)
+    dp = [[0] * (n+1) for _ in range(m+1)]
+    for i in range(m+1):
+        dp[i][0] = i
+    for j in range(n+1):
+        dp[0][j] = j
+    for i in range(1, m+1):
+        for j in range(1, n+1):
+            if a[i-1] == b[j-1]:
+                dp[i][j] = dp[i-1][j-1]
+            else:
+                dp[i][j] = min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+1)
+    return dp[m][n]
+

@@ -31,6 +31,9 @@ from hvo_sequence.utils import _get_kick_and_snare_syncopations, get_monophonic_
 from hvo_sequence.utils import get_weak_to_strong_ratio, _getmicrotiming_event_profile_1bar
 from hvo_sequence.utils import onset_strength_spec, reduce_f_bands_in_spec, detect_onset, map_onsets_to_grid, logf_stft
 from hvo_sequence.utils import get_hvo_idxs_for_voice
+from hvo_sequence.utils import jaccard_similarity, edit_distance
+from hvo_sequence.utils import getBalanceEvennessEntropyOfHVO_Seq
+from hvo_sequence.utils import argandAnalysisWithPlots
 
 from hvo_sequence.custom_dtypes import Metadata, GridMaker
 from hvo_sequence.drum_mappings import Groove_Toolbox_5Part_keymap, Groove_Toolbox_3Part_keymap
@@ -491,7 +494,7 @@ class HVO_Sequence(object):
             self.hvo = np.concatenate(
                 (self.hvo, np.zeros((max_size - self.number_of_steps, self.hvo.shape[1]))), axis=0)
 
-    def flatten_voices(self, offset_aggregator_modes=3, velocity_aggregator_modes=1, 
+    def flatten_voices(self, offset_aggregator_modes=3, velocity_aggregator_modes=1,
                        get_velocities=True, reduce_dim=False, voice_idx=2):
 
         """ Flatten all voices into a single tapped sequence. If there are several voices hitting at the same
@@ -1165,6 +1168,22 @@ class HVO_Sequence(object):
             return masked_version
 
             #   --------------------------------------------------------------
+
+    def split_into_equal_length_segments(self, steps_per_segment):
+        nsteps = self.number_of_steps
+        # full multiple of 16
+        if nsteps % steps_per_segment != 0:
+            self.adjust_length(steps_per_segment * (nsteps // steps_per_segment + 1))
+            nsteps = self.number_of_steps
+
+        _1bar_hvo_seqs = []
+        for start in range(0, nsteps, steps_per_segment):
+            temp = self.copy()
+            temp.hvo = temp.hvo[start:(start + steps_per_segment), :]
+            _1bar_hvo_seqs.append(temp)
+        return _1bar_hvo_seqs
+
+
     #   Utilities to Change Length and Add Notes
     #   --------------------------------------------------------------
     def find_index_for_pitch(self, pitch):
@@ -1383,8 +1402,8 @@ class HVO_Sequence(object):
     #   --------------------------------------------------------------
     def to_html_plot(self, filename="misc/temp.html", show_figure=False,
                      save_figure=False,
-                     show_tempo=True, 
-                     show_time_signature=True, 
+                     show_tempo=True,
+                     show_time_signature=True,
                      show_metadata=True,
                      minor_grid_color="black", minor_line_width=0.1,
                      major_grid_color="black", major_line_width=0.5,
@@ -1395,13 +1414,14 @@ class HVO_Sequence(object):
 
         return self.piano_roll(
             filename=filename, show_figure=show_figure, save_figure=save_figure,
-            show_tempo=show_tempo, 
-            show_time_signature=show_time_signature, 
+            show_tempo=show_tempo,
+            show_time_signature=show_time_signature,
             show_metadata=show_metadata, minor_grid_color=minor_grid_color, minor_line_width=minor_line_width,
             major_grid_color=major_grid_color, major_line_width=major_line_width,
             downbeat_color=downbeat_color, downbeat_line_width=downbeat_line_width,
             note_color=note_color,
             width=width, height=height)
+
 
     def piano_roll(self, filename="misc/temp.html", show_figure=False,
                    save_figure=False,
@@ -1808,6 +1828,89 @@ class HVO_Sequence(object):
         sync = self.get_combined_syncopation()
         return math.sqrt(pow(sync, 2) + pow(hit_density, 2))
 
+
+    def get_per_bar_balance_evenness_entropy(self, quantize=False, flatten=False):
+        """
+        Calculate balance, evenness and entropy for each bar in the groove according to :
+             Milne, Andrew J., and Steffen A. Herff. "The perceptual relevance of balance, evenness,
+                    and entropy in musical rhythms." Cognition 203 (2020): 104233.
+
+        For now only works for 4/4 time signature and 16th note resolution
+
+        returns 3 lists of values, one for each feature for each bar
+
+        :param quantize: if True, quantize to 16th note grid
+        :param flatten: if True, flatten to monophonic otherwise, features calculated by placing all voices on the
+                                same unit circle
+        """
+        assert self.time_signatures[0].numerator == 4 and self.time_signatures[0].denominator == 4, "Only 4/4 time signature supported"
+        assert self.grid_maker.beat_division_factors[0] == 4, "Only 16th note resolution supported"
+
+        balances, evennesses, entropies = [], [], []
+
+        for bar_ix, bar_hs in enumerate(self.split_into_equal_length_segments(16)):
+            balance, evenness, entropy, _ = getBalanceEvennessEntropyOfHVO_Seq(bar_hs,
+                                                                               quantize_offsets=quantize,
+                                                                               tappify=flatten,
+                                                                               need_plot_data=False)
+            balances.append(balance)
+            evennesses.append(evenness)
+            entropies.append(entropy)
+
+        return balances, evennesses, entropies
+
+
+    def get_argand_plot(self, title="", identifier="Pattern A", quantize=False, flatten=False,
+                        compare_with_other_hvo_sequence=None, other_identifier="Pattern B", quantize_other=False, flatten_other=False,
+                        plot_width=460, plot_height=500, marker_size=12, line_width=0.3,
+                        line_color="black", show_figure=False, save_figure=False, filename=None,
+                        quantize_all=False, flatten_all=False, color_with_vel_values=False):
+
+        # only works for 4/4 time signature and 16th note resolution
+        assert self.time_signatures[0].numerator == 4 and self.time_signatures[0].denominator == 4, "Only 4/4 time signature supported"
+        assert self.grid_maker.beat_division_factors[0] == 4, "Only 16th note resolution supported"
+
+        if quantize_all:
+            quantize = True
+            quantize_other = True
+
+        if flatten_all:
+            flatten = True
+            flatten_other = True
+
+        _, _, _, plot_ = argandAnalysisWithPlots(
+            first_hvo_seq=self,
+            first_identifier=identifier,
+            second_hvo_seq=compare_with_other_hvo_sequence,
+            second_identifier=other_identifier,
+            quantize=quantize,
+            quantize_reference=quantize_other,
+            flatten=flatten,
+            flatten_reference=flatten_other,
+            plot_width=plot_width,
+            plot_height=plot_height,
+            title=title,
+            marker_size=marker_size, line_width=line_width,
+            line_color=line_color,
+            color_with_vel_values=color_with_vel_values
+        )
+
+        if show_figure:
+            show(plot_)
+
+        # Save the plot
+        if save_figure:
+            if not filename.endswith(".html"):
+                filename += ".html"
+            if os.path.dirname(filename) != "":
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+            output_file(filename)  # Set name used for saving the figure
+            save(plot_)  # Save to file
+            logger.info(f"Saved Argand Plot to {filename}")
+
+        return plot_
+
     # ######################################################################
         #      Rhythmic Features::Autocorrelation Related from GrooveToolbox
     #
@@ -2198,6 +2301,66 @@ class HVO_Sequence(object):
         sorted_dict = {key: value for key, value in sorted(distances_dictionary.items())}
 
         return sorted_dict
+
+    def calculate_edit_distance_with(self, hvo_seq_b, reduce_dim=False):
+        """
+        Calculates the edit distance between the hits of two hvo_sequences (self and hvo_seq_b)
+
+        if reduce_dim is True, OR the drum_mappings are not the same, the edit distance is calculated
+        on the reduced dimensionality of the hvo_sequences (i.e. monotonic grooves of the sequences)
+
+        if reduce_dim is False, AND the drum_mappings are the same, the edit distance is calculated
+            on the full dimensionality of the hvo_sequences (i.e. all hits of the sequences)
+        :param hvo_seq_b:   Sequence to find edit distance with
+        """
+        if self.is_ready_for_use() is False or hvo_seq_b.is_ready_for_use() is False:
+            return None
+
+        a = self.copy()
+        b = hvo_seq_b.copy()
+
+        if a.number_of_steps != b.number_of_steps:
+            a.adjust_length(max(a.number_of_steps, b.number_of_steps))
+            b.adjust_length(max(a.number_of_steps, b.number_of_steps))
+
+        if reduce_dim is True or a.drum_mapping != b.drum_mapping:
+            a = a.flatten_voices(reduce_dim=True)[:, 0]
+            b = b.flatten_voices(reduce_dim=True)[:, 0]
+        else:
+            a = a.hits.flatten()
+            b = b.hits.flatten()
+
+        return edit_distance(a, b)
+
+
+    def calculate_jaccard_similarity_with(self, hvo_seq_b, reduce_dim=False):
+        """
+        Calculates the jaccard similarity between the hits of two hvo_sequences (self and hvo_seq_b)
+
+        if reduce_dim is True, OR the drum_mappings are not the same, the edit distance is calculated
+        on the reduced dimensionality of the hvo_sequences (i.e. monotonic grooves of the sequences)
+
+        if reduce_dim is False, AND the drum_mappings are the same, the edit distance is calculated
+            on the full dimensionality of the hvo_sequences (i.e. all hits of the sequences)
+        :param hvo_seq_b:   Sequence to find edit distance with
+        """
+        if self.is_ready_for_use() is False or hvo_seq_b.is_ready_for_use() is False:
+            return None
+
+        a = self.copy()
+        b = hvo_seq_b.copy()
+
+        if a.number_of_steps != b.number_of_steps:
+            a.adjust_length(max(a.number_of_steps, b.number_of_steps))
+            b.adjust_length(max(a.number_of_steps, b.number_of_steps))
+
+        if reduce_dim is True or a.drum_mapping != b.drum_mapping:
+            a = a.flatten_voices(reduce_dim=True)[:, 0]
+            b = b.flatten_voices(reduce_dim=True)[:, 0]
+        else:
+            a = a.hits.flatten()
+            b = b.hits.flatten()
+        return jaccard_similarity(a, b)
 
     def calculate_l1_distance_with(self, hvo_seq_b, hvo_str="hvo"):
         """
