@@ -51,6 +51,92 @@ def get_repetition_files_as_hvo_seqs(root_path, print_missed_files=False, extra_
 
     return hvo_sequences
 
+
+def get_three_repetitions_sample(test_number, participant_number, repetition_number):
+    paths = glob.glob("midi_files/Repetitions/tested_with_four_participants/*", recursive=True)
+
+    if paths is None:
+        raise FileNotFoundError("Could not find any files in the folder midi_files/Repetitions/tested_with_four_participants/")
+
+    assert 0 < test_number <= len(paths), f"Test number {test_number} can't be larger than {len(paths)}"
+    assert 0 < participant_number <= 4, f"Participant number must be 1, 2, 3 or 4"
+    assert 0 <= repetition_number <= 2, f"Repetition number must be 0, 1 or 2"
+
+    master_id = paths[test_number-1]
+
+    mapping_orig = ROLAND_REDUCED_MAPPING_HEATMAPS.copy()
+    mapping_rep = DUALIZATION_ROLAND_HAND_DRUM.copy()
+    folder_path = paths[test_number-1]
+
+    try:
+        midi_file = os.path.join(folder_path, f"Participant_{participant_number}_repetition_{repetition_number}.mid")
+        hvo_seq_rep = midi_to_hvo_sequence(
+            midi_file,
+            drum_mapping=mapping_rep, beat_division_factors=[4])
+        hvo_seq_rep.adjust_length(32)
+
+        hvo_seq_rep.metadata.update({
+            "master_id": midi_file.split('/')[-2].split(".")[0],
+            "performer": int(midi_file.split('Participant_')[-1].split("_")[0]),
+            "repetition": repetition_number,
+        })
+
+        midi_file = os.path.join(folder_path, "original.mid")
+        hvo_seq_orig = midi_to_hvo_sequence(midi_file, drum_mapping=mapping_orig, beat_division_factors=[4])
+        hvo_seq_orig.adjust_length(32)
+        hvo_seq_orig.metadata.update({
+            "master_id": midi_file.split('/')[-2].split(".")[0],
+            "repetition": "NA",
+        })
+        return hvo_seq_rep, hvo_seq_orig
+    except:
+        raise FileNotFoundError(f"Could not find file {os.path.join(folder_path, f'Participant_{participant_number}_repetition_{repetition_number-1}.mid')}")
+
+
+def get_all_three_repetitions_for_participant(test_number, participant_number, repetition_number, ):
+    paths = glob.glob("midi_files/Repetitions/*/*.mid", recursive=True)
+    print(paths)
+    if paths is None:
+        raise FileNotFoundError("Could not find any files in the folder midi_files/Repetitions/tested_with_four_participants/")
+
+    assert 0 < test_number <= len(paths), f"Test number {test_number} can't be larger than {len(paths)}"
+    assert 0 < participant_number <= 4, f"Participant number must be 1, 2, 3 or 4"
+    assert 0 <= repetition_number <= 2, f"Repetition number must be 0, 1 or 2"
+
+    master_id = paths[test_number-1]
+
+    mapping_orig = ROLAND_REDUCED_MAPPING_HEATMAPS.copy()
+    mapping_rep = DUALIZATION_ROLAND_HAND_DRUM.copy()
+    folder_path = paths[test_number-1]
+
+    try:
+        midi_file = os.path.join(folder_path, f"Participant_{participant_number}_repetition_{repetition_number}.mid")
+        hvo_seq_rep = midi_to_hvo_sequence(
+            midi_file,
+            drum_mapping=mapping_rep, beat_division_factors=[4])
+        hvo_seq_rep.adjust_length(32)
+
+        hvo_seq_rep.metadata.update({
+            "master_id": midi_file.split('/')[-2].split(".")[0],
+            "performer": int(midi_file.split('Participant_')[-1].split("_")[0]),
+            "repetition": repetition_number,
+        })
+
+        midi_file = os.path.join(folder_path, "original.mid")
+        hvo_seq_orig = midi_to_hvo_sequence(midi_file, drum_mapping=mapping_orig, beat_division_factors=[4])
+        hvo_seq_orig.adjust_length(32)
+        hvo_seq_orig.metadata.update({
+            "master_id": midi_file.split('/')[-2].split(".")[0],
+            "repetition": "NA",
+        })
+        return hvo_seq_rep, hvo_seq_orig
+    except:
+        raise FileNotFoundError(f"Could not find file {os.path.join(folder_path, f'Participant_{participant_number}_repetition_{repetition_number-1}.mid')}")
+
+
+
+
+
 def get_original_files_as_hvo_seqs(root_path, print_missed_files=False, extra_filter=None,  mapper_fn=None):
     mapping = ROLAND_REDUCED_MAPPING_HEATMAPS.copy()
 
