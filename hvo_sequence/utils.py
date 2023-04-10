@@ -1042,7 +1042,8 @@ def draw1BarArgandVectorPlot(plot_data_, title="", plot_width=400, plot_height=4
 def argandAnalysisWithPlots(first_hvo_seq, first_identifier="(A)", second_hvo_seq=None, second_identifier="(B)",
                             quantize=False, quantize_reference=False, flatten=False, flatten_reference=False, plot_width=400, plot_height=400,
                             title="", marker_size=12, line_width=0.3,
-                            line_color="black", color_with_vel_values=False):
+                            line_color="black", color_with_vel_values=False,
+                            show_balance_evenness_entropy=True, need_title=False):
     balances_a, evennesses_a, entropies_a = [], [], []
     balances_b, evennesses_b, entropies_b = [], [], []
     argand_tabs = []
@@ -1064,7 +1065,10 @@ def argandAnalysisWithPlots(first_hvo_seq, first_identifier="(A)", second_hvo_se
             bar_hs, quantize_offsets=quantize, tappify=flatten, need_plot_data=True,
             identifier=first_identifier, marker_type="circle_x", marker_size=int(marker_size*1.2), use_primary_colors=True, radius=0.8)
         title_ = f"{title} \n"
-        title_ += f"{first_identifier} | Bar {bar_ix + 1}, Balance = {balance}, Evenness = {evenness}, Entropy = {entropy} \n"
+        title_ += f"{first_identifier} \n"
+        if show_balance_evenness_entropy:
+            title_ += "\n Bar {bar_ix + 1}, Balance = {balance}, Evenness = {evenness}, Entropy = {entropy} \n"
+
         balances_a.append(balance)
         evennesses_a.append(evenness)
         entropies_a.append(entropy)
@@ -1072,7 +1076,9 @@ def argandAnalysisWithPlots(first_hvo_seq, first_identifier="(A)", second_hvo_se
             if bar_ix < len(balances_b):
                 ref_plot_data = ref_plots_per_bar[bar_ix]
                 plot_data.extend(ref_plot_data)
-                title_ += f"{second_identifier} | Bar {bar_ix + 1}, Balance = {balances_b[bar_ix]}, Evenness = {evennesses_b[bar_ix]}, Entropy = {entropies_b[bar_ix]} \n"
+                title_ += f"{second_identifier} "
+                if show_balance_evenness_entropy:
+                    title_ += "\n Bar {bar_ix + 1}, Balance = {balances_b[bar_ix]}, Evenness = {evennesses_b[bar_ix]}, Entropy = {entropies_b[bar_ix]} \n"
             else:
                 title_ += f"No corresponding bar in {second_identifier} for bar {bar_ix+1} in {first_identifier}"
 
@@ -1080,7 +1086,7 @@ def argandAnalysisWithPlots(first_hvo_seq, first_identifier="(A)", second_hvo_se
             ref_plot_data = ref_plots_per_bar[bar_ix]
             plot_data.extend(ref_plot_data)
         argand_tabs.append(draw1BarArgandVectorPlot(
-            plot_data, title=title_ ,
+            plot_data, title=title_ if need_title else "",
             plot_width=plot_width, plot_height=plot_height, line_width=line_width, line_color=line_color,
             color_with_vel_values=color_with_vel_values))
 

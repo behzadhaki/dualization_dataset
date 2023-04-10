@@ -1402,7 +1402,7 @@ class HVOSeq_SubSet_Evaluator(object):
             for sample_idx, sample_hvo in enumerate(self._sampled_hvos[key]):
                 # randomly select a sound font
                 sf_path = sf_paths[np.random.randint(0, len(sf_paths))]
-                audios.append(sample_hvo.synthesize(sf_path=sf_path))
+                audios.append(sample_hvo.audio(sf_path=sf_path))
                 captions.append("subset {} sample {} _{}_{}_{}.wav".format(
                     key, sample_idx, self.set_identifier, sample_hvo.metadata["style_primary"],
                     sample_hvo.metadata["master_id"].replace("/", "_")

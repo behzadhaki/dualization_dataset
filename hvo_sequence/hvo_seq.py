@@ -1864,7 +1864,7 @@ class HVO_Sequence(object):
                         compare_with_other_hvo_sequence=None, other_identifier="Pattern B", quantize_other=False, flatten_other=False,
                         plot_width=460, plot_height=500, marker_size=12, line_width=0.3,
                         line_color="black", show_figure=False, save_figure=False, filename=None,
-                        quantize_all=False, flatten_all=False, color_with_vel_values=False):
+                        quantize_all=False, flatten_all=False, color_with_vel_values=False, show_balance_evenness_entropy=False,):
 
         # only works for 4/4 time signature and 16th note resolution
         assert self.time_signatures[0].numerator == 4 and self.time_signatures[0].denominator == 4, "Only 4/4 time signature supported"
@@ -1892,7 +1892,8 @@ class HVO_Sequence(object):
             title=title,
             marker_size=marker_size, line_width=line_width,
             line_color=line_color,
-            color_with_vel_values=color_with_vel_values
+            color_with_vel_values=color_with_vel_values,
+            show_balance_evenness_entropy=show_balance_evenness_entropy,
         )
 
         if show_figure:
