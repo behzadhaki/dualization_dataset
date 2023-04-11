@@ -714,8 +714,14 @@ class DualizationTest:
         results_dict = {}
         participantDualizations = self.compile_dualizations_of_participants_attempted_test()
         for participantDualization in participantDualizations:
-            res = participantDualization.calculate_intra_dualization_edit_distances(normalize_by_union=normalize_by_union)
-            results_dict[f"Participant {participantDualization.Participant}"] = res
+            res = participantDualization.calculate_intra_dualization_edit_distances(
+                normalize_by_union=normalize_by_union)
+            if participantDualization.TestType == "Simple Complex":
+                results_dict[f"Participant {participantDualization.Participant} Simple " \
+                             f"\n   vs.     \n " \
+                             f"Participant {participantDualization.Participant} Complex"] = res
+            elif participantDualization.TestType == "Three Random Repetitions":
+                results_dict[f"Participant {participantDualization.Participant}"] = res
         return results_dict
 
     def calculate_inter_dualization_edit_distances(self, normalize_by_union=False):
@@ -730,8 +736,17 @@ class DualizationTest:
             for j in range(i + 1, len(participants_attempted_test)):
                 res = participants_attempted_test[i].calculate_inter_dualization_edit_distances(
                     participants_attempted_test[j], normalize_by_union=normalize_by_union)
-                results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
-                             f"Participant {participants_attempted_test[j].Participant}"] = res
+
+                if self.TestType == "Three Random Repetitions":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
+                                 f"Participant {participants_attempted_test[j].Participant}"] = res
+                elif self.TestType == "Simple Complex":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple" \
+                                 f"\n vs.      \n"
+                                 f"Participant {participants_attempted_test[j].Participant} Simple"] = [res["Simple"]]
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex " \
+                                 f"\n vs.      \n"
+                                 f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
 
         return results_dict
 
@@ -740,7 +755,12 @@ class DualizationTest:
         participantDualizations = self.compile_dualizations_of_participants_attempted_test()
         for participantDualization in participantDualizations:
             res = participantDualization.calculate_intra_dualization_jaccard_similarities()
-            results_dict[f"Participant {participantDualization.Participant}"] = res
+            if participantDualization.TestType == "Simple Complex":
+                results_dict[f"Participant {participantDualization.Participant} Simple " \
+                             f"\n   vs.    \n " \
+                             f"Participant {participantDualization.Participant} Complex"] = res
+            elif participantDualization.TestType == "Three Random Repetitions":
+                results_dict[f"Participant {participantDualization.Participant}"] = res
         return results_dict
 
     def calculate_inter_dualization_jaccard_similarities(self):
@@ -755,8 +775,17 @@ class DualizationTest:
             for j in range(i + 1, len(participants_attempted_test)):
                 res = participants_attempted_test[i].calculate_inter_dualization_jaccard_similarities(
                     participants_attempted_test[j])
-                results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
-                             f"Participant {participants_attempted_test[j].Participant}"] = res
+
+                if self.TestType == "Three Random Repetitions":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
+                                 f"Participant {participants_attempted_test[j].Participant}"] = res
+                elif self.TestType == "Simple Complex":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple " \
+                                 f"\n vs.      \n"
+                                 f"Participant {participants_attempted_test[j].Participant} Simple"] = [res["Simple"]]
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex " \
+                                 f"\n vs.      \n"
+                                 f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
 
         return results_dict
 
@@ -765,39 +794,18 @@ class DualizationTest:
         participantDualizations = self.compile_dualizations_of_participants_attempted_test()
         for participantDualization in participantDualizations:
             res = participantDualization.collect_step_densities(normalize_by_original=normalize_by_original)
-            results_dict[f"Participant {participantDualization.Participant}"] = res
-        return results_dict
-
-    def calculate_intra_step_density_distances(self, normalize_by_original=False):
-        results_dict = {}
-        participantDualizations = self.compile_dualizations_of_participants_attempted_test()
-        for participantDualization in participantDualizations:
-            res = participantDualization.calculate_intra_step_density_distances(normalize_by_original=normalize_by_original)
-            results_dict[f"Participant {participantDualization.Participant}"] = res
-        return results_dict
-
-    def calculate_inter_step_density_distances(self, normalize_by_original=False):
-        if not self.isMultiParticipant:
-            print("No Inter step density distances can only be calculated if more than one "
-                  "participant attempted the test")
-            return None
-
-        participants_attempted_test = self.compile_dualizations_of_participants_attempted_test()
-
-        results_dict = {}
-
-        for i in range(len(participants_attempted_test)):
-            for j in range(i + 1, len(participants_attempted_test)):
-                res = participants_attempted_test[i].calculate_inter_step_density_distances(
-                    participants_attempted_test[j], normalize_by_original=normalize_by_original)
-                results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
-                             f"Participant {participants_attempted_test[j].Participant}"] = res
-
+            if participantDualization.TestType == "Simple Complex":
+                results_dict[f"Participant {participantDualization.Participant} Simple"] = [res["Simple"]]
+                results_dict[f"Participant {participantDualization.Participant} Complex"] = [res["Complex"]]
+            elif participantDualization.TestType == "Three Random Repetitions":
+                results_dict[f"Participant {participantDualization.Participant}"] = res
         return results_dict
 
     # def calculate_inter_step_density_distances(self, other_ParticipantDualizations,
     #                                            normalize_by_union=False, throw_error_if_not_same_test_type=True):
     #
+
+
 class ParticipantDualizations:
     def __int__(self):
         self.__TestNumber = None  # 001, 002, 003, ... (str)
@@ -1145,21 +1153,22 @@ class ParticipantDualizations:
 
         source = None
         target = None
-        if self.TestType == "Three Random Repetitions":
-            source = [self.rep0, self.rep1, self.rep2]
-        elif self.TestType == "Simple Complex":
-            source = [self.simple, self.complex]
 
         if other_ParticipantDualizations.TestType == "Three Random Repetitions":
+            source = [self.rep0, self.rep1, self.rep2]
             target = [other_ParticipantDualizations.rep0, other_ParticipantDualizations.rep1,
                       other_ParticipantDualizations.rep2]
+            for s in source:
+                for t in target:
+                    edit_distances.append(s.calculate_edit_distance_with(t))
         elif other_ParticipantDualizations.TestType == "Simple Complex":
-            target = [other_ParticipantDualizations.simple, other_ParticipantDualizations.complex]
+             edit_distances = {
+                "Simple": self.simple.calculate_edit_distance_with(other_ParticipantDualizations.simple,
+                                                                   normalize_by_union=normalize_by_union),
+                "Complex": self.complex.calculate_edit_distance_with(other_ParticipantDualizations.complex,
+                                                                     normalize_by_union=normalize_by_union)
+            }
 
-        for s in source:
-            for t in target:
-                edit_distances.append(
-                    round(s.calculate_edit_distance_with(t, normalize_by_union=normalize_by_union), 2))
 
         return edit_distances
     def calculate_dualization_to_original_edit_distances(self, normalize_by_union=False):
@@ -1201,21 +1210,19 @@ class ParticipantDualizations:
         source = None
         target = None
 
-        if self.TestType == "Three Random Repetitions":
-            source = [self.rep0, self.rep1, self.rep2]
-        elif self.TestType == "Simple Complex":
-            source = [self.simple, self.complex]
 
         if other_ParticipantDualizations.TestType == "Three Random Repetitions":
+            source = [self.rep0, self.rep1, self.rep2]
             target = [other_ParticipantDualizations.rep0, other_ParticipantDualizations.rep1,
                       other_ParticipantDualizations.rep2]
+            for s in source:
+                for t in target:
+                    jaccard_similarities.append(s.calculate_jaccard_similarity_with(t))
         elif other_ParticipantDualizations.TestType == "Simple Complex":
-            target = [other_ParticipantDualizations.simple, other_ParticipantDualizations.complex]
-
-        for s in source:
-            for t in target:
-                jaccard_similarities.append(s.calculate_jaccard_similarity_with(t))
-
+            jaccard_similarities = {
+                "Simple": self.simple.calculate_jaccard_similarity_with(other_ParticipantDualizations.simple),
+                "Complex": self.complex.calculate_jaccard_similarity_with(other_ParticipantDualizations.complex)
+            }
         return jaccard_similarities
 
     def calculate_dualization_to_original_jaccard_similarities(self):
@@ -1232,67 +1239,20 @@ class ParticipantDualizations:
     def collect_step_densities(self, normalize_by_original=False):
         original_density = self.original.calculate_step_density() if normalize_by_original else 1
 
-        densities = []
+        densities = None
         if self.TestType == "Three Random Repetitions":
+            densities = []
             densities.append(self.rep0.calculate_step_density() / original_density)
             densities.append(self.rep1.calculate_step_density() / original_density)
             densities.append(self.rep2.calculate_step_density() / original_density)
 
         elif self.TestType == "Simple Complex":
-            densities.append(self.simple.calculate_step_density() / original_density)
-            densities.append(self.complex.calculate_step_density() / original_density)
+            densities = {
+                "Simple": self.simple.calculate_step_density() / original_density,
+                "Complex": self.complex.calculate_step_density() / original_density
+            }
+
         return densities
-
-    def calculate_intra_step_density_distances(self, normalize_by_union=False):
-        distances = []
-        combs = None
-        if self.TestType == "Three Random Repetitions":
-            combs = combinations([self.rep0, self.rep1, self.rep2], 2)
-        elif self.TestType == "Simple Complex":
-            combs = combinations([self.simple, self.complex], 2)
-        for comb in combs:
-            distances.append(abs(comb[0].calculate_step_density()-comb[1].calculate_step_density()))
-        if normalize_by_union:
-            original_density = self.original.calculate_step_density()
-            distances = [d/original_density for d in distances]
-        return distances
-
-    def calculate_inter_step_density_distances(self, other_ParticipantDualizations,
-                                               normalize_by_union=False, throw_error_if_not_same_test_type=True):
-        distances = []
-        if self.TestType != other_ParticipantDualizations.TestType:
-            if throw_error_if_not_same_test_type:
-                raise AttributeError("Patterns must have the same TestType")
-
-        source = None
-        target = None
-
-        if self.TestType == "Three Random Repetitions":
-            source = [self.rep0.calculate_step_density(),
-                        self.rep1.calculate_step_density(),
-                        self.rep2.calculate_step_density()]
-        elif self.TestType == "Simple Complex":
-            source = [self.simple.calculate_step_density(),
-                        self.complex.calculate_step_density()]
-        if normalize_by_union:
-            org_den = self.original.calculate_step_density()
-            source = [s/org_den for s in source]
-
-        if other_ParticipantDualizations.TestType == "Three Random Repetitions":
-            target = [other_ParticipantDualizations.rep0.calculate_step_density(),
-                        other_ParticipantDualizations.rep1.calculate_step_density(),
-                        other_ParticipantDualizations.rep2.calculate_step_density()]
-        elif other_ParticipantDualizations.TestType == "Simple Complex":
-            target = [other_ParticipantDualizations.simple.calculate_step_density(),
-                        other_ParticipantDualizations.complex.calculate_step_density()]
-        if normalize_by_union:
-            org_den = other_ParticipantDualizations.original.calculate_step_density()
-            target = [t/org_den for t in target]
-
-        for s in source:
-            for t in target:
-                distances.append(abs(s-t))
-        return distances
 
 
 class Pattern:
