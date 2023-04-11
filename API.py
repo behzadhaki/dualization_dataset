@@ -12,7 +12,7 @@ from bokeh.plotting import figure
 from bokeh.models import Panel, Range1d, HoverTool
 
 import typing
-
+from random import sample
 try:
     import pretty_midi
 
@@ -573,6 +573,46 @@ class DualizationDatasetAPI:
                 results_dict[key].extend(value)
         return results_dict
 
+    def get_n_random_dualization_pairs_from_three_repetitions(self, n_sample, randomize_scores=False):
+        three_repetitions = self.ThreeRepetitionSubset.MultipleParticipantSubset
+        if len(three_repetitions) == 0:
+            return None
+        else:
+            pairs = []
+            dualization_tests = self.dualization_tests
+            for n_sample in range(n_sample):
+                dualization_test1 = sample(dualization_tests, 1)[0]
+                dualization_test2 = sample(dualization_tests, 1)[0]
+                # select 1 on four participants
+                participant_ids = [1, 2, 3, 4]
+                participant_id1 = sample(participant_ids, 1)[0]
+                rep_id1 = sample([0, 1, 2], 1)[0]
+                participant_ids.remove(participant_id1)
+                participant_id2 = sample(participant_ids, 1)[0]
+                rep_id2 = sample([0, 1, 2], 1)[0]
+                patter1 = eval(f"dualization_test1.P{participant_id1}.rep{rep_id1}")
+                patter2 = eval(f"dualization_test2.P{participant_id2}.rep{rep_id2}")
+                if randomize_scores:
+                    patter1.randomize_hits()
+                    patter2.randomize_hits()
+                pairs.append((patter1, patter2))
+            return pairs
+
+    def extract_inter_edit_distances_from_list_of_pattern_pairs(self, pattern_pairs, normalize_by_union=False):
+        results = []
+        for pattern_pair in pattern_pairs:
+            pattern1 = pattern_pair[0]
+            pattern2 = pattern_pair[1]
+            results.append(pattern1.calculate_edit_distance_with(pattern2, normalize_by_union=normalize_by_union))
+        return results
+
+    def extract_inter_jaccard_similarities_from_list_of_pattern_pairs(self, pattern_pairs):
+        results = []
+        for pattern_pair in pattern_pairs:
+            pattern1 = pattern_pair[0]
+            pattern2 = pattern_pair[1]
+            results.append(pattern1.calculate_jaccard_similarity_with(pattern2))
+        return results
 
 class DualizationTest:
     def __init__(self, dualizationDataset=None, test_number=None):
@@ -1313,6 +1353,13 @@ class Pattern:
             print("hvo_sequence is not available. Please install requirements")
             return None
 
+    def randomize_hits(self):
+        if _HAS_HVO_SEQUENCE:
+            if self.__hvo_sequence is None:
+                self.hvo_sequence
+            self.__hvo_sequence.random(self.hvo_sequence.number_of_steps)
+        else:
+            print("hvo_sequence is not available. Please install requirements")
     @property
     def pretty_midi(self):
         if _HAS_PRETTY_MIDI:
