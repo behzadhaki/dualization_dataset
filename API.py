@@ -715,7 +715,6 @@ class DualizationTest:
         participantDualizations = self.compile_dualizations_of_participants_attempted_test()
         for participantDualization in participantDualizations:
             res = participantDualization.calculate_intra_dualization_edit_distances(normalize_by_union=normalize_by_union)
-
             results_dict[f"Participant {participantDualization.Participant}"] = res
         return results_dict
 
