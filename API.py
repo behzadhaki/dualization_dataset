@@ -166,6 +166,7 @@ class DualizationDatasetAPI:
         self.__summary_dataframe = new_dataframe
         self.__summary_dataframe.reset_index(drop=True, inplace=True)
 
+
     @property
     def fields(self):
         return self.__summary_dataframe.columns
@@ -282,6 +283,30 @@ class DualizationDatasetAPI:
                 indices.append(self.summary_dataframe["Style"].str.lower().str.contains(s))
             indices = np.any(indices, axis=0)
         new_dataset.__remove_datapoints(indices)
+        return new_dataset
+
+    def get_subset_excluding_styles(self, style, hard_match=False):
+        """
+        Filters the dataset by style (or styles) and returns a new dataset.
+        The matching ignores case.
+        @param style:
+        @param hard_match:
+        @return:
+        """
+        new_dataset = self.copy()
+        if isinstance(style, str):
+            style = [style]
+
+        style = [s.lower() for s in style]
+
+        if hard_match:
+            indices = self.summary_dataframe["Style"].isin(style)
+        else:
+            indices = []
+            for s in style:
+                indices.append(self.summary_dataframe["Style"].str.lower().str.contains(s))
+            indices = np.any(indices, axis=0)
+        new_dataset.__remove_datapoints(~indices)
         return new_dataset
 
     def get_subset_within_tempo_range(self, min_, max_):
@@ -598,6 +623,80 @@ class DualizationDatasetAPI:
                 pairs.append((patter1, patter2))
             return pairs
 
+    def get_n_random_simple_pairs_from_simple_complex(self, n_sample, randomize_scores=False):
+        simplecomplex_repetitions = self.SimpleComplexSubset.MultipleParticipantSubset
+        if len(simplecomplex_repetitions) == 0:
+            return None
+        else:
+            pairs = []
+            dualization_tests = self.dualization_tests
+            for n_sample in range(n_sample):
+                dualization_test1 = sample(dualization_tests, 1)[0]
+                dualization_test2 = sample(dualization_tests, 1)[0]
+                # select 1 on four participants
+                participant_ids = [1, 2]
+                participant_id1 = sample(participant_ids, 1)[0]
+                rep_id1 = sample([0, 1, 2], 1)[0]
+                participant_ids.remove(participant_id1)
+                participant_id2 = sample(participant_ids, 1)[0]
+                rep_id2 = sample([0, 1, 2], 1)[0]
+                patter1 = dualization_test1.P1.simple
+                patter2 = dualization_test2.P2.simple
+                if randomize_scores:
+                    patter1.randomize_hits()
+                    patter2.randomize_hits()
+                pairs.append((patter1, patter2))
+            return pairs
+
+    def get_n_random_complex_pairs_from_simple_complex(self, n_sample, randomize_scores=False):
+        simplecomplex_repetitions = self.SimpleComplexSubset.MultipleParticipantSubset
+        if len(simplecomplex_repetitions) == 0:
+            return None
+        else:
+            pairs = []
+            dualization_tests = self.dualization_tests
+            for n_sample in range(n_sample):
+                dualization_test1 = sample(dualization_tests, 1)[0]
+                dualization_test2 = sample(dualization_tests, 1)[0]
+                # select 1 on four participants
+                participant_ids = [1, 2]
+                participant_id1 = sample(participant_ids, 1)[0]
+                rep_id1 = sample([0, 1, 2], 1)[0]
+                participant_ids.remove(participant_id1)
+                participant_id2 = sample(participant_ids, 1)[0]
+                rep_id2 = sample([0, 1, 2], 1)[0]
+                patter1 = dualization_test1.P1.complex
+                patter2 = dualization_test2.P2.complex
+                if randomize_scores:
+                    patter1.randomize_hits()
+                    patter2.randomize_hits()
+                pairs.append((patter1, patter2))
+            return pairs
+
+    def get_n_random_simplecomplex_pairs_from_simple_complex(self, n_sample, randomize_scores=False):
+        simplecomplex_repetitions = self.SimpleComplexSubset.MultipleParticipantSubset
+        if len(simplecomplex_repetitions) == 0:
+            return None
+        else:
+            pairs = []
+            dualization_tests = self.dualization_tests
+            for n_sample in range(n_sample):
+                dualization_test1 = sample(dualization_tests, 1)[0]
+                dualization_test2 = sample(dualization_tests, 1)[0]
+                # select 1 on four participants
+                participant_ids = [1, 2]
+                participant_id1 = sample(participant_ids, 1)[0]
+                vals = ["simple", "complex"]
+                rep_id1 = sample([0, 1], 1)[0]
+                participant_ids.remove(participant_id1)
+                patter1 = eval(f"dualization_test1.P1.{vals[rep_id1]}")
+                patter2 = eval(f"dualization_test2.P2.{vals[1-rep_id1]}")
+                if randomize_scores:
+                    patter1.randomize_hits()
+                    patter2.randomize_hits()
+                pairs.append((patter1, patter2))
+            return pairs
+
     def extract_inter_edit_distances_from_list_of_pattern_pairs(self, pattern_pairs, normalize_by_union=False):
         results = []
         for pattern_pair in pattern_pairs:
@@ -613,6 +712,9 @@ class DualizationDatasetAPI:
             pattern2 = pattern_pair[1]
             results.append(pattern1.calculate_jaccard_similarity_with(pattern2))
         return results
+
+
+
 
 class DualizationTest:
     def __init__(self, dualizationDataset=None, test_number=None):
@@ -757,8 +859,7 @@ class DualizationTest:
             res = participantDualization.calculate_intra_dualization_edit_distances(
                 normalize_by_union=normalize_by_union)
             if participantDualization.TestType == "Simple Complex":
-                results_dict[f"Participant {participantDualization.Participant} Simple " \
-                             f"\n   vs.     \n " \
+                results_dict[f"Participant {participantDualization.Participant} Simple vs. " \
                              f"Participant {participantDualization.Participant} Complex"] = res
             elif participantDualization.TestType == "Three Random Repetitions":
                 results_dict[f"Participant {participantDualization.Participant}"] = res
@@ -781,11 +882,9 @@ class DualizationTest:
                     results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
                                  f"Participant {participants_attempted_test[j].Participant}"] = res
                 elif self.TestType == "Simple Complex":
-                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple" \
-                                 f"\n vs.      \n"
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple vs. " \
                                  f"Participant {participants_attempted_test[j].Participant} Simple"] = [res["Simple"]]
-                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex " \
-                                 f"\n vs.      \n"
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex vs. "
                                  f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
 
         return results_dict
@@ -796,8 +895,7 @@ class DualizationTest:
         for participantDualization in participantDualizations:
             res = participantDualization.calculate_intra_dualization_jaccard_similarities()
             if participantDualization.TestType == "Simple Complex":
-                results_dict[f"Participant {participantDualization.Participant} Simple " \
-                             f"\n   vs.    \n " \
+                results_dict[f"Participant {participantDualization.Participant} Simple vs. " 
                              f"Participant {participantDualization.Participant} Complex"] = res
             elif participantDualization.TestType == "Three Random Repetitions":
                 results_dict[f"Participant {participantDualization.Participant}"] = res
@@ -820,11 +918,9 @@ class DualizationTest:
                     results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
                                  f"Participant {participants_attempted_test[j].Participant}"] = res
                 elif self.TestType == "Simple Complex":
-                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple " \
-                                 f"\n vs.      \n"
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple vs. "
                                  f"Participant {participants_attempted_test[j].Participant} Simple"] = [res["Simple"]]
-                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex " \
-                                 f"\n vs.      \n"
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex vs."
                                  f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
 
         return results_dict
