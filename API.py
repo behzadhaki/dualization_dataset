@@ -719,6 +719,28 @@ class DualizationDatasetAPI:
                 pairs.append((patter1, patter2))
             return pairs
 
+    def get_n_random_simplecomplex_pairs_from_simple_complex_single_participant(self, n_sample, participant,
+                                                                                randomize_scores=False):
+        simplecomplex_repetitions = self.SimpleComplexSubset.MultipleParticipantSubset
+        if len(simplecomplex_repetitions) == 0:
+            return None
+        else:
+            pairs = []
+            dualization_tests = self.dualization_tests
+            for n_sample in range(n_sample):
+                dualization_test1 = sample(dualization_tests, 1)[0]
+                dualization_test2 = sample(dualization_tests, 1)[0]
+                # select 1 on four participants
+                vals = ["simple", "complex"]
+                rep_id1 = sample([0, 1], 1)[0]
+                patter1 = eval(f"dualization_test1.P{participant}.{vals[rep_id1]}")
+                patter2 = eval(f"dualization_test2.P{participant}.{vals[1-rep_id1]}")
+                if randomize_scores:
+                    patter1.randomize_hits()
+                    patter2.randomize_hits()
+                pairs.append((patter1, patter2))
+            return pairs
+
     def extract_inter_edit_distances_from_list_of_pattern_pairs(self, pattern_pairs, normalize_by_union=False):
         results = []
         for pattern_pair in pattern_pairs:
