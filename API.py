@@ -46,7 +46,7 @@ except ImportError:
 from bokeh.models import Tabs, Panel
 from bokeh.io import show
 from itertools import combinations
-
+from sklearn.metrics import cohen_kappa_score
 
 class DualizationDatasetAPI:
     def __init__(self, midi_folder=None):
@@ -577,6 +577,28 @@ class DualizationDatasetAPI:
                 results_dict[key].extend(value)
         return results_dict
 
+    def calculate_intra_dualization_cohens_kappas(self):
+        results_dict = {}
+        for dualizationtest in self.dualization_tests:
+            res_dict = dualizationtest.calculate_intra_dualization_cohens_kappas()
+            for key, value in res_dict.items():
+                if key not in results_dict:
+                    results_dict[key] = []
+                results_dict[key].extend(value)
+        return results_dict
+
+    def calculate_inter_dualization_cohens_kappas(self):
+        results_dict = {}
+        for dualizationtest in self.dualization_tests:
+            res_dict = dualizationtest.calculate_inter_dualization_cohens_kappas()
+            if res_dict is not None:
+                for key, value in res_dict.items():
+                    if key not in results_dict:
+                        results_dict[key] = []
+                    results_dict[key].extend(value)
+        return results_dict
+
+
     def calculate_inter_dualization_jaccard_similarities(self):
         results_dict = {}
         for dualizationtest in self.dualization_tests:
@@ -713,7 +735,13 @@ class DualizationDatasetAPI:
             results.append(pattern1.calculate_jaccard_similarity_with(pattern2))
         return results
 
-
+    def extract_inter_cohen_kappa_from_list_of_pattern_pairs(self, pattern_pairs):
+        results = []
+        for pattern_pair in pattern_pairs:
+            pattern1 = pattern_pair[0]
+            pattern2 = pattern_pair[1]
+            results.append(pattern1.calculate_cohens_kappa_with(pattern2))
+        return results
 
 
 class DualizationTest:
@@ -924,6 +952,43 @@ class DualizationTest:
                                  f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
 
         return results_dict
+
+    def calculate_intra_dualization_cohens_kappas(self):
+        results_dict = {}
+        participantDualizations = self.compile_dualizations_of_participants_attempted_test()
+        for participantDualization in participantDualizations:
+            res = participantDualization.calculate_intra_dualization_cohens_kappa()
+            if participantDualization.TestType == "Simple Complex":
+                results_dict[f"Participant {participantDualization.Participant} Simple vs. " \
+                             f"Participant {participantDualization.Participant} Complex"] = res
+            elif participantDualization.TestType == "Three Random Repetitions":
+                results_dict[f"Participant {participantDualization.Participant}"] = res
+        return results_dict
+
+    def calculate_inter_dualization_cohens_kappas(self):
+        if not self.isMultiParticipant:
+            return None
+
+        participants_attempted_test = self.compile_dualizations_of_participants_attempted_test()
+
+        results_dict = {}
+
+        for i in range(len(participants_attempted_test)):
+            for j in range(i + 1, len(participants_attempted_test)):
+                res = participants_attempted_test[i].calculate_inter_dualization_cohens_kappa(
+                    participants_attempted_test[j])
+
+                if self.TestType == "Three Random Repetitions":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} vs. "
+                                 f"Participant {participants_attempted_test[j].Participant}"] = res
+                elif self.TestType == "Simple Complex":
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Simple vs. "
+                                 f"Participant {participants_attempted_test[j].Participant} Simple"] = [res["Simple"]]
+                    results_dict[f"Participant {participants_attempted_test[i].Participant} Complex vs. "
+                                 f"Participant {participants_attempted_test[j].Participant} Complex"] = [res["Complex"]]
+
+        return results_dict
+
 
     def collect_step_densities(self, normalize_by_original=False):
         results_dict = {}
@@ -1390,7 +1455,49 @@ class ParticipantDualizations:
 
         return densities
 
+    def calculate_intra_dualization_cohens_kappa(self):
+        cohens_kappas = []
+        combs = None
+        if self.TestType == "Three Random Repetitions":
+            combs = combinations([self.rep0, self.rep1, self.rep2], 2)
+        elif self.TestType == "Simple Complex":
+            combs = combinations([self.simple, self.complex], 2)
+        for comb in combs:
+            cohens_kappas.append(comb[0].calculate_cohens_kappa_with(comb[1]))
+        return cohens_kappas
 
+    def calculate_inter_dualization_cohens_kappa(self, other_ParticipantDualizations,
+                                                        throw_error_if_not_same_test_type=True):
+        """
+        Calculates the Cohen's Kappa between the dualizations of two participants.
+        :param other_ParticipantDualizations: The other participant's dualizations
+        :param throw_error_if_not_same_test_type: If True, will throw an error if the two participants have different
+        test types (i.e. comparing a simple-complex participant to a three-random-repetitions participant will not
+
+        NOTE: AT THIS POINT, COMPARING SIMPLE-COMPLEX TO THREE-RANDOM-REPETITIONs AND VICE VERSA IS NOT SUPPORTED.
+        """
+        cohens_kappas = []
+        if self.TestType != other_ParticipantDualizations.TestType:
+            if throw_error_if_not_same_test_type:
+                raise AttributeError("Patterns must have the same TestType")
+            else:
+                return None
+
+        source = None
+        target = None
+        if other_ParticipantDualizations.TestType == "Three Random Repetitions":
+            source = [self.rep0, self.rep1, self.rep2]
+            target = [other_ParticipantDualizations.rep0, other_ParticipantDualizations.rep1,
+                      other_ParticipantDualizations.rep2]
+            for s in source:
+                for t in target:
+                    cohens_kappas.append(s.calculate_cohens_kappa_with(t))
+        elif other_ParticipantDualizations.TestType == "Simple Complex":
+            cohens_kappas = {
+                "Simple": self.simple.calculate_cohens_kappa_with(other_ParticipantDualizations.simple),
+                "Complex": self.complex.calculate_cohens_kappa_with(other_ParticipantDualizations.complex)
+            }
+        return cohens_kappas
 class Pattern:
     def __init__(self, midi_file_path, style, tempo, test_number):
         self.__path = midi_file_path
@@ -1554,7 +1661,11 @@ class Pattern:
     def calculate_step_density(self):
         return self.hvo_sequence.get_total_step_density()
 
-
+    def calculate_cohens_kappa_with(self, otherPattern):
+        if _HAS_HVO_SEQUENCE:
+            pattern_a = self.hvo_sequence.flatten_voices(reduce_dim=True)[:, 0]
+            pattern_b = otherPattern.hvo_sequence.flatten_voices(reduce_dim=True)[:, 0]
+            return cohen_kappa_score(pattern_a, pattern_b)
 
 
 if __name__ == "__main__":

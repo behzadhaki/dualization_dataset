@@ -809,7 +809,7 @@ def plot_dice(dice_scores_per_step, title, y_axis_label, width=700, height=200, 
     return p
 
 
-def plot_jaccard(jaccard_scores_per_step, title, y_axis_label, width=700, height=200, need_x_labels=True, need_y_labels=True):
+def plot_jaccard(jaccard_scores_per_step, title, y_axis_label, width=700, height=200, need_x_labels=True, need_y_labels=True,ymax =1.2):
     p = figure(width=width, height=height, toolbar_location=None,
            title=title)
 
@@ -839,7 +839,7 @@ def plot_jaccard(jaccard_scores_per_step, title, y_axis_label, width=700, height
     p.legend.padding =5
 
     # adjust y range to -0.2, 1
-    p.y_range = Range1d(0, 1.2)
+    p.y_range = Range1d(0, ymax)
     p.yaxis.ticker = [0., 0.2, 0.4, 0.6, 0.8, 1.0]
     p.yaxis.major_label_overrides = {0.0: '0', 0.2: '0.2', 0.4: '0.4', 0.6: '0.6', 0.8: '0.8', 1.0: '1.0'}
     p.xaxis.ticker = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5, 21.5, 22.5, 23.5, 24.5, 25.5, 26.5, 27.5, 28.5, 29.5, 30.5, 31.5, 32.5]
