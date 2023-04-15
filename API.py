@@ -140,7 +140,6 @@ class DualizationDatasetAPI:
             item = self.__format_test_number(item)
             dualizationForTestsList.append(DualizationTest(self, item))
 
-        print("DualizationForTestsList: ", dualizationForTestsList)
         return dualizationForTestsList if len(dualizationForTestsList) > 1 else dualizationForTestsList[0]
 
     def __iter__(self):
